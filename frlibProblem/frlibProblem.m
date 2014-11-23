@@ -13,8 +13,6 @@ load('frlib_problem.mat');
 use_frlib = true;
 if use_frlib
   frPrg = frlibPrg(A,b,c,K);
-%   opts.useQR = 1;
-%   frPrg = frPrg.ReducePrimal('d', opts);
   A = frPrg.A;
   b = frPrg.b;
   c = frPrg.c';

@@ -1,5 +1,5 @@
 function [prog, sol] = solveBilinear(prog, constr, x, c1, c2, solver, options, max_iters, rank_tol)
-% solves SOS program sos subject to additional bilinear SOS constraint
+% solves SOS program prog subject to additional bilinear SOS constraint
 % constr. The constraint constr is bilinear in coefficients c1 and c2, and
 % has free variables x.
 % From Ibaraki, Tomizuka - Rank Minimization Approach for Solving BMI Problems with Random Search
@@ -36,7 +36,6 @@ prog = prog.withSOS(constr);
 prog = prog.withPSD(M);
 
 sol_w = zeros(size(w));
-
 for k = 1 : max_iters %this loop improves on the standard trace heuristic for rank.
   disp(['iteration ' num2str(k)]);
   sol = prog.minimize(trace(W)-2*sol_w'*w,solver,options);

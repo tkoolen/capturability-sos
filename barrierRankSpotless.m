@@ -1,7 +1,9 @@
 function barrierRankSpotless()
+addpath(fullfile('util'));
+cleaner = onCleanup(@() rmpath(fullfile('util')));
+checkDependency('spotless');
 solver = getSolver();
 
-checkDependency('spotless');
 prog = spotsosprog;
 
 % Variables/Indeterminates

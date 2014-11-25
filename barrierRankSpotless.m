@@ -3,6 +3,10 @@ addpath(fullfile('util'));
 cleaner = onCleanup(@() rmpath(fullfile('util')));
 checkDependency('spotless');
 solver = getSolver();
+% addpath(fullfile('..', 'frlib'));
+oldpath = cd(fullfile('..', 'frlib'));
+setup();
+cd(oldpath);
 prog = spotsosprog;
 
 % Variables/Indeterminates

@@ -2,7 +2,12 @@ function lipmInitial()
 addpath(fullfile('util'));
 cleaner = onCleanup(@() rmpath(fullfile('util')));
 checkDependency('spotless');
+oldpath = cd(fullfile('..', 'frlib'));
+setup();
+cd(oldpath);
+
 solver = getSolver();
+% solver = @spot_sedumi;
 prog = spotsosprog;
 
 % Variables/Indeterminates
@@ -15,23 +20,33 @@ rd = x(2);
 f = [rd; r];
 
 % Barrier function
-dB = 2;
-[prog, B, cB] = prog.newFreePoly(monomials(x, 0 : dB));
+dB = 4;
+% [prog, B, cB] = prog.newFreePoly(monomials(x, 0 : dB));
+% mB = monomialSubs('y', [r + rd; r - rd], 1 : dB);
+mB = monomials(x, 1:dB);
+[prog, B, cB] = prog.newFreePoly(mB);
 
 % Initial condition constraint
+x_star = [0; 0];
+A = double(subs(diff(f, x), x, x_star));
+[V, D] = eig(A);
+unstable_eigenvectors = V(:, diag(D) >= 0);
+g_X0 = - (unstable_eigenvectors' * x)' * (unstable_eigenvectors' * x);
 % g_X0 = -x' * x;
-g_X0 = -x' * x; % + 0.1^2;
+% g_X0 = - (x - [1; 1])' * (x - [1; 1]);
+% g_X0 = -(r + rd)' * (r + rd);
+
 dL1 = 4;
 [prog, L1] = prog.newSOSPoly(monomials(x, 0 : dL1));
-prog = prog.withSOS(-B - L1 * g_X0 - 1e-2);
+prog = prog.withSOS(-B - L1 * g_X0);
 
 % Unsafe set constraint
 dL2 = 4;
 [prog, L2] = prog.newSOSPoly(monomials(x, 0 : dL2));
-% rf_dist = 100000;
+% rf_dist = 10000;
 % g_Xu = r' * r - rf_dist^2;
 g_Xu = (r + rd)' * (r + rd) - 0.1;
-prog = prog.withSOS(B - L2 * g_Xu);
+prog = prog.withSOS(B - L2 * g_Xu - 1);
 
 % Barrier function derivative constraint
 Bdot = diff(B, x) * f;
@@ -40,14 +55,14 @@ dL = 4;
 constr = -Bdot + L*B; % Bdot < 0 when B = 0
 
 options = spot_sdp_default_options();
-% options.verbose = 1;
+options.do_facial_reduction = true;
+options.verbose = 0;
 max_iters = 20;
 rank_tol = 1e-7;
 [prog, sol] = solveBilinear(prog, constr, x, cB, cL, solver, options, max_iters, rank_tol);
 
-xprint = msspoly('x',2); % print in terms of x1 and x2
-B_sol = subs(sol.eval(B),x,xprint);
-Bdot_sol = subs(sol.eval(Bdot),x,xprint);
+B_sol = clean(sol.eval(B), 1e-5);
+Bdot_sol = clean(sol.eval(Bdot), 1e-5);
 
 visualize(B_sol, Bdot_sol, g_X0, g_Xu, x, f);
 

@@ -20,7 +20,7 @@ f = [x2; -x1 + x1^3 - x2];
 
 % Barrier function
 dB = 4;
-[prog, B, cB] = prog.newFreePoly(monomials(x, 0 : dB));
+[prog, B] = prog.newFreePoly(monomials(x, 0 : dB));
 
 % Initial condition constraint
 g_X0 = 0.5^2 - (x1 - 1.5)^2 - x2^2; % Should be in terms of x1 and x2
@@ -37,14 +37,14 @@ prog = prog.withSOS(B - L2 * g_Xu);
 % Barrier function derivative constraint
 Bdot = diff(B, x) * f;
 dL = 2;
-[prog, L, cL] = prog.newFreePoly(monomials(x, 0 : dL));
+[prog, L] = prog.newFreePoly(monomials(x, 0 : dL));
 constr = -Bdot + L*B; % Bdot < 0 when B = 0
 
 options = spot_sdp_default_options();
 % options.verbose = 1;
 max_iters = 20;
 rank_tol = 1e-7;
-[prog, sol] = solveBilinear(prog, constr, x, cB, cL, solver, options, max_iters, rank_tol);
+[prog, sol] = solveBilinear(prog, constr, x, solver, options, max_iters, rank_tol);
 
 xprint = msspoly('x',2); % print in terms of x1 and x2
 B_sol = clean(subs(sol.eval(B),x,xprint),1e-5);

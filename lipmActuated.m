@@ -1,4 +1,4 @@
-function lipmInitial()
+function lipmActuated()
 addpath(fullfile('util'));
 cleaner = onCleanup(@() rmpath(fullfile('util')));
 checkDependency('spotless');
@@ -12,23 +12,30 @@ prog = spotsosprog;
 
 % Variables/Indeterminates
 nstates = 2;
+ninputs = 1;
 [prog, x] = prog.newIndeterminate('x', nstates);
+[prog, u] = prog.newIndeterminate('u', ninputs);
 r = x(1);
 rd = x(2);
 
-% Dynamics
-f = [rd; r];
+% input limits
+u_max = 0.1;
+u_vertices = [-u_max u_max];
+
+% dynamics
+f = @(x, u) lipmDynamics(x, u);
 
 % Barrier function
 dB = 4;
 % [prog, B, cB] = prog.newFreePoly(monomials(x, 0 : dB));
 % mB = monomialSubs('y', [r + rd; r - rd], 1 : dB);
 mB = monomials(x, 1:dB);
-[prog, B] = prog.newFreePoly(mB);
+[prog, B, cB] = prog.newFreePoly(mB);
 
 % Initial condition constraint
 x_star = [0; 0];
-A = double(subs(diff(f, x), x, x_star));
+u_star = 0;
+A = double(subs(diff(f(x, u), x), [x; u], [x_star; u_star]));
 [V, D] = eig(A);
 unstable_eigenvectors = V(:, diag(D) >= 0);
 g_X0 = - (unstable_eigenvectors' * x)' * (unstable_eigenvectors' * x);
@@ -49,17 +56,37 @@ g_Xu = (r + rd)' * (r + rd) - 0.1;
 prog = prog.withSOS(B - L2 * g_Xu - 1);
 
 % Barrier function derivative constraint
-Bdot = diff(B, x) * f;
-dL = 4;
-[prog, L] = prog.newFreePoly(monomials(x, 0 : dL));
-constr = -Bdot + L*B; % Bdot < 0 when B = 0
+n_u_vertices = size(u_vertices, 2);
+Bdot = cell(n_u_vertices, 1);
+dB = diff(B, x);
+for i = 1 : n_u_vertices
+  ui = u_vertices(:, i);
+  Bdot{i} = dB * ui;
+end
+
+L_degree = 2;
+for j = 1 : size(u_vertices, 2)
+  region = msspoly(0);
+  for i = 1 : size(u_vertices, 2)
+    if i ~= j
+      [prog, Lij] = prog.newSOSPoly(monomials(x, 0 : L_degree));
+      region = region + Lij * (Bdot{j} - Bdot{i});
+    end
+  end
+  
+  % can't do this because both Lij and Bdot{j} - Bdot{i} are free
+  % polynomials, so product is not linear in coefficients:
+  [prog, N] = prog.newFreePoly(monomials(x, 0 : L_degree));
+  region = region + N * B;
+  prog = prog.withSOS(-Bdot{j} + region);
+end
 
 options = spot_sdp_default_options();
 options.do_facial_reduction = true;
 options.verbose = 0;
 max_iters = 20;
 rank_tol = 1e-7;
-[prog, sol] = solveBilinear(prog, constr, x, solver, options, max_iters, rank_tol);
+[prog, sol] = solveBilinear(prog, constr, x, cB, cL, solver, options, max_iters, rank_tol);
 
 B_sol = clean(sol.eval(B), 1e-5);
 Bdot_sol = clean(sol.eval(Bdot), 1e-5);

@@ -52,7 +52,7 @@ dL2 = 4;
 [prog, L2] = prog.newSOSPoly(monomials(x, 0 : dL2));
 % rf_dist = 10000;
 % g_Xu = r' * r - rf_dist^2;
-g_Xu = (r + rd)' * (r + rd) - 0.1;
+g_Xu = (r + rd)' * (r + rd) - 1;
 prog = prog.withSOS(B - L2 * g_Xu - 1);
 
 % Barrier function derivative constraint
@@ -61,9 +61,10 @@ Bdot = cell(n_u_vertices, 1);
 dB = diff(B, x);
 for i = 1 : n_u_vertices
   ui = u_vertices(:, i);
-  Bdot{i} = dB * ui;
+  Bdot{i} = dB * f(x, ui);
 end
 
+bilinear_sos_constraints = cell(size(u_vertices, 2), 1);
 L_degree = 2;
 for j = 1 : size(u_vertices, 2)
   region = msspoly(0);
@@ -74,22 +75,20 @@ for j = 1 : size(u_vertices, 2)
     end
   end
   
-  % can't do this because both Lij and Bdot{j} - Bdot{i} are free
-  % polynomials, so product is not linear in coefficients:
   [prog, N] = prog.newFreePoly(monomials(x, 0 : L_degree));
   region = region + N * B;
-  prog = prog.withSOS(-Bdot{j} + region);
+  bilinear_sos_constraints{j} = -Bdot{j} + region;
 end
 
 options = spot_sdp_default_options();
 options.do_facial_reduction = true;
 options.verbose = 0;
-max_iters = 20;
+max_iters = 3;
 rank_tol = 1e-7;
-[prog, sol] = solveBilinear(prog, constr, x, cB, cL, solver, options, max_iters, rank_tol);
+[prog, sol] = solveBilinear(prog, bilinear_sos_constraints, x, solver, options, max_iters, rank_tol);
 
 B_sol = clean(sol.eval(B), 1e-5);
-Bdot_sol = clean(sol.eval(Bdot), 1e-5);
+Bdot_sol = cellfun(@(x) clean(sol.eval(x), 1e-5), Bdot, 'UniformOutput', false);
 
 visualize(B_sol, Bdot_sol, g_X0, g_Xu, x, f);
 
@@ -98,33 +97,39 @@ end
 function visualize(B_sol, Bdot_sol, g_X0, g_Xu, x, f)
 [X,Y] = meshgrid(linspace(-3,3,100),linspace(-3,3,100));
 % initial condition set
-gs_X0 = msubs(g_X0,x,[X(:),Y(:)]');
+gs_X0 = double(msubs(g_X0,x,[X(:),Y(:)]'));
 % unsafe set
-gs_Xu = msubs(g_Xu,x,[X(:),Y(:)]');
-gs_B = msubs(B_sol,x,[X(:),Y(:)]');
-gs_Bdot = msubs(Bdot_sol,x,[X(:),Y(:)]');
+gs_Xu = double(msubs(g_Xu,x,[X(:),Y(:)]'));
+gs_B = double(msubs(B_sol,x,[X(:),Y(:)]'));
+gs_Bdot = cellfun(@(z) double(msubs(z,x,[X(:),Y(:)]')), Bdot_sol, 'UniformOutput', false);
 
 figure();
 mesh(X, Y, reshape(double(gs_B),100,100)); xlabel('x1'); ylabel('x2');
 title('barrier function');
 
 figure()
-mesh(X, Y, reshape(double(gs_Bdot),100,100)); xlabel('x1'); ylabel('x2');
-title('barrier function derivative');
+hold on;
+% for i = 1 : numel(gs_Bdot)
+%   mesh(X, Y, reshape(double(gs_Bdot{i}),100,100)); xlabel('x1'); ylabel('x2');
+% end
+mesh(X, Y, reshape(gs_Bdot{2} - gs_Bdot{1}, 100, 100)); xlabel('x1'); ylabel('x2');
+title('barrier function derivative difference');
 
 figure()
 hold on
-contour(X,Y,reshape(double(gs_X0),100,100),[0 0],'LineWidth',3); % initial condition set
-contour(X,Y,reshape(double(gs_Xu),100,100),[0 0],'r','LineWidth',3) % unsafe set
-contour(X,Y,reshape(double(gs_B),100,100),[0 0],'b','LineWidth',3) % boundary function zero level set
+contour(X,Y,reshape(gs_X0,100,100),[0 0],'LineWidth',3); % initial condition set
+contour(X,Y,reshape(gs_Xu,100,100),[0 0],'r','LineWidth',3) % unsafe set
+contour(X,Y,reshape(gs_B,100,100),[0 0],'b','LineWidth',3) % boundary function zero level set
+contour(X,Y,reshape(gs_Bdot{2} - gs_Bdot{1},100,100),[0 0],'m','LineWidth',3) % boundary function derivative difference zero level set
+
 
 % (scaled) vector field
-[X,Y] = meshgrid(linspace(-3,3,50),linspace(-3,3,50));
-x1dots = reshape(double(msubs(f(1),x,[X(:),Y(:)]')),50,50);
-x2dots = reshape(double(msubs(f(2),x,[X(:),Y(:)]')),50,50);
-x1dots = 0.1*x1dots./(sqrt(x1dots.^2 + x2dots.^2));
-x2dots = 0.1*x2dots./(sqrt(x1dots.^2 + x2dots.^2));
-quiver(X,Y,x1dots,x2dots,'AutoScale','off','Color','k');
+% [X,Y] = meshgrid(linspace(-3,3,50),linspace(-3,3,50));
+% x1dots = reshape(double(msubs(f(1),x,[X(:),Y(:)]')),50,50);
+% x2dots = reshape(double(msubs(f(2),x,[X(:),Y(:)]')),50,50);
+% x1dots = 0.1*x1dots./(sqrt(x1dots.^2 + x2dots.^2));
+% x2dots = 0.1*x2dots./(sqrt(x1dots.^2 + x2dots.^2));
+% quiver(X,Y,x1dots,x2dots,'AutoScale','off','Color','k');
 
 % Title
 title('Barrier functions')

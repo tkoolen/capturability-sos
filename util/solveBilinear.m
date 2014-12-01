@@ -60,9 +60,9 @@ for j = 1 : n_constraints
   % of the original variables
   degrees(bilinear_indices, :) = 0;
   [row, col, value] = find(degrees);
-  row = [row; bilinear_indices];
-  col = [col; n_vars + (1 : n_bilinear_vars)'];
-  value = [value; ones(size(bilinear_indices))];
+  row = [row; bilinear_indices]; %#ok<AGROW>
+  col = [col; n_vars + (1 : n_bilinear_vars)']; %#ok<AGROW>
+  value = [value; ones(size(bilinear_indices))]; %#ok<AGROW>
   degrees = sparse(row, col, value, size(degrees, 1), n_vars + n_bilinear_vars);
   
   % recompose coefficients after getting rid of bilinear monomials and adding

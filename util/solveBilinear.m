@@ -89,8 +89,8 @@ for k = 1 : max_iters
   disp(['iteration ' num2str(k)]);
   f = objective(W, w, sol_w);
   sol = prog.minimize(f, solver,options);
-  sol_w = getSolW(sol, w);
-  ranks = cellfun(@(x) rank(x, rank_tol), getSolM(sol, M));
+  sol_w = cellfun(@(x) double(sol.eval(x)), w, 'UniformOutput', false);
+  ranks = cellfun(@(x) rank(x, rank_tol), cellfun(@(x) double(sol.eval(x)), M, 'UniformOutput', false));
   
   disp(['objective value: ' num2str(double(sol.eval(f)))]);
   disp(['max rank: ' num2str(max(max(ranks)))]);
@@ -112,19 +112,5 @@ function f = objective(W, w, sol_w)
 f = zeros(1, 1, 'msspoly');
 for i = 1 : numel(W)
   f = f + trace(W{i}) - 2 * sol_w{i}' * w{i};
-end
-end
-
-function sol_w = getSolW(sol, w)
-sol_w = cell(size(w));
-for i = 1 : numel(w)
-  sol_w{i} = double(sol.eval(w{i}));
-end
-end
-
-function sol_M = getSolM(sol, M)
-sol_M = cell(size(M));
-for i = 1 : numel(M)
-  sol_M{i} = double(sol.eval(M{i}));
 end
 end

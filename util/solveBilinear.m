@@ -11,6 +11,7 @@ end
 n_constraints = length(constraints);
 W = cell(n_constraints, 1);
 w = cell(n_constraints, 1);
+M = cell(n_constraints, 1);
 sol_w = cell(n_constraints, 1);
 
 for j = 1 : n_constraints
@@ -34,6 +35,7 @@ for j = 1 : n_constraints
   % of in separate newSymmetric calls inside the loop for efficiency
   W{j} = cell(n_bilinear_vars, 1);
   w{j} = cell(n_bilinear_vars, 1);
+  M{j} = cell(n_bilinear_vars, 1);
   [prog, Wvec] = prog.newFree(spotprog.psdDimToNo(2), n_bilinear_vars);
   
   for i = 1 : n_bilinear_vars
@@ -42,8 +44,8 @@ for j = 1 : n_constraints
     W{j, i} = mss_v2s(Wvec(:, i));
     
     % set up the PSD constraint
-    M = [W{j, i} w{j, i}; w{j, i}' 1];
-    prog = prog.withPSD(M);
+    M{j, i} = [W{j, i} w{j, i}; w{j, i}' 1];
+    prog = prog.withPSD(M{j, i});
     
     % store the 'bilinear variable' that replaces prod(w{i}) in the
     % constraint
@@ -87,8 +89,8 @@ for k = 1 : max_iters
   disp(['iteration ' num2str(k)]);
   f = objective(W, w, sol_w);
   sol = prog.minimize(f, solver,options);
-  sol_w = getSol_w(sol, w);
-  ranks = cellfun(@(x) rank(x, rank_tol), getSol_W(sol, W));
+  sol_w = getSolW(sol, w);
+  ranks = cellfun(@(x) rank(x, rank_tol), getSolM(sol, M));
   
   disp(['objective value: ' num2str(double(sol.eval(f)))]);
   disp(['max rank: ' num2str(max(max(ranks)))]);
@@ -113,16 +115,16 @@ for i = 1 : numel(W)
 end
 end
 
-function sol_w = getSol_w(sol, w)
+function sol_w = getSolW(sol, w)
 sol_w = cell(size(w));
 for i = 1 : numel(w)
   sol_w{i} = double(sol.eval(w{i}));
 end
 end
 
-function sol_W = getSol_W(sol, W)
-sol_W = cell(size(W));
-for i = 1 : numel(W)
-  sol_W{i} = double(sol.eval(W{i}));
+function sol_M = getSolM(sol, M)
+sol_M = cell(size(M));
+for i = 1 : numel(M)
+  sol_M{i} = double(sol.eval(M{i}));
 end
 end

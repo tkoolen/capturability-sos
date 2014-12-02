@@ -1,9 +1,19 @@
-function [prog, sol] = solveBilinear(prog, constraints, x, solver, options, max_iters, rank_tol)
+function [prog, sol] = solveBilinear(prog, constraints, x, solver, solver_options, options)
 % solves SOS program prog subject to additional bilinear SOS constraint
 % constr. The constraint constr is bilinear in coefficients c1 and c2, and
 % has free variables x.
 % From Ibaraki, Tomizuka - Rank Minimization Approach for Solving BMI Problems with Random Search
 
+if ~isfield(options, 'max_iters')
+  options.max_iters = 20;
+end
+if ~isfield(options, 'rank_tol')
+  options.rank_tol = 1e-5;
+end
+if ~isfield(options, 'objective_type')
+  options.objective_type = 'sum';
+end
+ 
 if ~iscell(constraints)
   constraints = {constraints};
 end
@@ -30,12 +40,13 @@ for j = 1 : n_constraints
   n_bilinear_vars = size(degrees_bilinear, 1);
   bilinear_vars = zeros(n_bilinear_vars, 1, 'msspoly');
   
-  % Create symmetric matrix + PSD constraint for each monomial that is bilinear
-  % first create all variables for the symmetric W matrices at once instead
-  % of in separate newSymmetric calls inside the loop for efficiency
+  % Create symmetric matrix + PSD constraint for each bilinear term.
   W{j} = cell(n_bilinear_vars, 1);
   w{j} = cell(n_bilinear_vars, 1);
   M{j} = cell(n_bilinear_vars, 1);
+  
+  % Create all variables for the symmetric W matrices at once instead of in
+  % separate newSymmetric calls inside the loop for efficiency
   [prog, Wvec] = prog.newFree(spotprog.psdDimToNo(2), n_bilinear_vars);
   
   for i = 1 : n_bilinear_vars
@@ -85,12 +96,24 @@ for j = 1 : n_constraints
 end
 
 % iteratively solve
-for k = 1 : max_iters
+for k = 1 : options.max_iters
   disp(['iteration ' num2str(k)]);
-  f = objective(W, w, sol_w);
-  sol = prog.minimize(f, solver,options);
+  if strcmp(options.objective_type, 'sum')
+    f = sumObjective(W, w, sol_w);
+    prog_k = prog;
+  elseif strcmp(options.objective_type, 'max')
+    prog_k = prog;
+    [prog_k, gamma] = prog_k.newFree(1);
+    for i = 1 : numel(W)
+      prog_k = prog_k.withPos(gamma - (trace(W{i}) - 2 * sol_w{i}' * w{i}));
+    end
+    f = gamma;
+  else
+    error('objective type not recognized');
+  end
+  sol = prog_k.minimize(f, solver, solver_options);
   sol_w = cellfun(@(x) double(sol.eval(x)), w, 'UniformOutput', false);
-  ranks = cellfun(@(x) rank(x, rank_tol), cellfun(@(x) double(sol.eval(x)), M, 'UniformOutput', false));
+  ranks = cellfun(@(x) rank(x, options.rank_tol), cellfun(@(x) double(sol.eval(x)), M, 'UniformOutput', false));
   
   disp(['objective value: ' num2str(double(sol.eval(f)))]);
   disp(['max rank: ' num2str(max(max(ranks)))]);
@@ -108,7 +131,7 @@ end
 
 end
 
-function f = objective(W, w, sol_w)
+function f = sumObjective(W, w, sol_w)
 f = zeros(1, 1, 'msspoly');
 for i = 1 : numel(W)
   f = f + trace(W{i}) - 2 * sol_w{i}' * w{i};

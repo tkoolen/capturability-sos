@@ -54,12 +54,12 @@ dL = 4;
 [prog, L] = prog.newFreePoly(monomials(x, 0 : dL));
 constr = -Bdot + L*B; % Bdot < 0 when B = 0
 
-options = spot_sdp_default_options();
-options.do_facial_reduction = true;
-options.verbose = 0;
-max_iters = 20;
-rank_tol = 1e-7;
-[prog, sol] = solveBilinear(prog, constr, x, solver, options, max_iters, rank_tol);
+solver_options = spot_sdp_default_options();
+solver_options.do_facial_reduction = true;
+solver_options.verbose = 1;
+options.max_iters = 20;
+options.rank_tol = 1e-7;
+[prog, sol] = solveBilinear(prog, constr, x, solver, solver_options, options);
 
 B_sol = clean(sol.eval(B), 1e-5);
 Bdot_sol = clean(sol.eval(Bdot), 1e-5);

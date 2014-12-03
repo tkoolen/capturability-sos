@@ -16,7 +16,7 @@ end
 if ~isfield(options, 'psd_constraint_size')
   options.psd_constraint_size = 3;
 end
- 
+
 if ~iscell(constraints)
   constraints = {constraints};
 end
@@ -32,7 +32,6 @@ for j = 1 : n_constraints
   coefficients{j} = recomp(vars, degrees, speye(size(degrees, 1)));
 end
 
-coefficients_linear = cell(n_constraints, 1);
 if options.psd_constraint_size == 3
   [prog, coefficients_linear_cat, w{1}, W{1}, M{1}] = replaceBilinearTermsWithNewVariables(prog, vertcat(coefficients{:}));
   rows = cellfun(@(x) size(x, 1), coefficients);
@@ -41,6 +40,7 @@ else
   W = cell(n_constraints, 1);
   w = cell(n_constraints, 1);
   M = cell(n_constraints, 1);
+  coefficients_linear = cell(n_constraints, 1);
   for j = 1 : n_constraints
     if options.psd_constraint_size == 2 % create one symmetric matrix + PSD constraint for each constraint
       [prog, coefficients_linear{j}, w{j}, W{j}, M{j}] = replaceBilinearTermsWithNewVariables(prog, coefficients{j});
@@ -48,9 +48,9 @@ else
       total_degrees = sum(degrees, 2);
       nonlinear_monomial_indices = find(total_degrees > 1);
       n_nonlinear_monomial_indices = length(nonlinear_monomial_indices);
-      W{j} = cell(n_nonlinear_monomial_indices, 1);
-      w{j} = cell(n_nonlinear_monomial_indices, 1);
-      M{j} = cell(n_nonlinear_monomial_indices, 1);      
+      W{j} = cell(n_nonlinear_monomial_indices, n_nonlinear_monomial_indices);
+      w{j} = cell(n_nonlinear_monomial_indices, n_nonlinear_monomial_indices);
+      M{j} = cell(n_nonlinear_monomial_indices, n_nonlinear_monomial_indices);
       coefficients_linear{j} = coefficients{j};
       for i = 1 : n_nonlinear_monomial_indices
         coeff_idx = nonlinear_monomial_indices(i);

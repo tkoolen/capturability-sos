@@ -16,12 +16,13 @@ if any(total_degrees > 2) || any(any(degrees > 1)) || any(any(degrees < 0))
   error('input is not bilinear')
 end
 
-% find monomials which are bilinear
+% find monomials which are bilinear and variables which appear in bilinear
+% terms
 bilinear_monomial_indices = find(total_degrees == 2);
 degrees_bilinear = degrees(bilinear_monomial_indices, :);
-
-% find variables which appear in bilinear terms
-x = vars(any(degrees_bilinear > 0, 1));
+x_ind = any(degrees_bilinear > 0, 1);
+x = vars(x_ind);
+degrees_bilinear = degrees_bilinear(:, x_ind);
 
 % create symmetric X matrix
 n_Wvec = spotprog.psdDimToNo(length(x));

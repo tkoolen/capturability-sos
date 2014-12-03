@@ -22,23 +22,24 @@ alpha(hB, 0.5);
 [~, hB] = contour3(X, Y, reshape(gs_B, nmesh, nmesh), [0 0], 'b'); % boundary function zero level set
 arrayfun(@(x) set(x, 'LineWidth', 3), hB);
 
-
-
 r_levelset = get(hB, 'XData');
 rd_levelset = get(hB, 'YData');
+B_levelset = get(hB, 'ZData');
 
 for j = 1 : length(r_levelset)
-  x_levelset = [r_levelset{j}; rd_levelset{j}];
-  path_length = [0 cumsum(sqrt(sum(diff(x_levelset, 1, 2).^2, 1)))];
+  x_levelset_j = [r_levelset{j}; rd_levelset{j}];
+  B_levelset_j = B_levelset{j};
+  path_length = [0 cumsum(sqrt(sum(diff(x_levelset_j, 1, 2).^2, 1)))];
   npoints = 15;
-  x_levelset = interp1(path_length', x_levelset', linspace(0, path_length(end), npoints)')';
+  x_levelset_j = interp1(path_length', x_levelset_j', linspace(0, path_length(end), npoints)')';
+  B_levelset_j = interp1(path_length', B_levelset_j', linspace(0, path_length(end), npoints)')';
   
-  ric_levelset = sum(x_levelset, 1);
+  ric_levelset = sum(x_levelset_j, 1);
   disp(['average icp location: ' num2str(mean(ric_levelset))]);
   
-  f_levelset = zeros(size(x_levelset));
-  for i = 1 : size(x_levelset, 2)
-    x_i = x_levelset(:, i);
+  f_levelset = zeros(size(x_levelset_j));
+  for i = 1 : size(x_levelset_j, 2)
+    x_i = x_levelset_j(:, i);
     Bdots = cellfun(@(z) full(double(msubs(z, x, x_i))), Bdot);
     [~, u_index] = min(Bdots);
     u_i = u_vertices(:, u_index);
@@ -46,14 +47,14 @@ for j = 1 : length(r_levelset)
   end
   dt = 1e-3;
   dx_levelset = f_levelset * dt;
-  dB_levelset = full(double(msubs(B, x, x_levelset + dx_levelset))) - full(double(msubs(B, x, x_levelset)));
-  quiver3(x_levelset(1, :), x_levelset(2, :), zeros(1, size(x_levelset, 2)), dx_levelset(1, :), dx_levelset(2, :), dB_levelset, 'k', 'LineWidth', 3);
+  dB_levelset = full(double(msubs(B, x, x_levelset_j + dx_levelset))) - full(double(msubs(B, x, x_levelset_j)));
+  quiver3(x_levelset_j(1, :), x_levelset_j(2, :), B_levelset_j, dx_levelset(1, :), dx_levelset(2, :), dB_levelset, 'k', 'LineWidth', 3);
 end
 
 hold off;
 
 legend(hB(1), {'B(x) = 0'});
-xlabel('x1'); ylabel('x2');
+xlabel('r'); ylabel('dr/dt');
 title('barrier function');
 view(3);
 grid on;

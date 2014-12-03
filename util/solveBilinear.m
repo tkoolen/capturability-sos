@@ -13,6 +13,9 @@ end
 if ~isfield(options, 'objective_type')
   options.objective_type = 'sum';
 end
+if ~isfield(options, 'use_small_psd_constraints')
+  options.use_small_psd_constraints = false;
+end
  
 if ~iscell(constraints)
   constraints = {constraints};
@@ -40,47 +43,86 @@ for j = 1 : n_constraints
   n_bilinear_vars = size(degrees_bilinear, 1);
   bilinear_vars = zeros(n_bilinear_vars, 1, 'msspoly');
   
-  % Create symmetric matrix + PSD constraint for each bilinear term.
-  W{j} = cell(n_bilinear_vars, 1);
-  w{j} = cell(n_bilinear_vars, 1);
-  M{j} = cell(n_bilinear_vars, 1);
-  
-  % Create all variables for the symmetric W matrices at once instead of in
-  % separate newSymmetric calls inside the loop for efficiency
-  [prog, Wvec] = prog.newFree(spotprog.psdDimToNo(2), n_bilinear_vars);
-  
-  for i = 1 : n_bilinear_vars
-    % reshape Wvec variables into a symmetric matrix
-    w{j, i} = vars(logical(degrees_bilinear(i, :)));
-    W{j, i} = mss_v2s(Wvec(:, i));
+  if options.use_small_psd_constraints
+    % Create symmetric matrix + PSD constraint for each bilinear term.
+    W{j} = cell(n_bilinear_vars, 1);
+    w{j} = cell(n_bilinear_vars, 1);
+    M{j} = cell(n_bilinear_vars, 1);
+    sol_w{j} = cell(n_bilinear_vars, 1);
+    
+    % Create all variables for the symmetric W matrices at once instead of in
+    % separate newSymmetric calls inside the loop for efficiency
+    [prog, Wvec] = prog.newFree(spotprog.psdDimToNo(2), n_bilinear_vars);
+    
+    for i = 1 : n_bilinear_vars
+      % reshape Wvec variables into a symmetric matrix
+      w{j, i} = vars(logical(degrees_bilinear(i, :)));
+      W{j, i} = mss_v2s(Wvec(:, i));
+      
+      % set up the PSD constraint
+      M{j, i} = [W{j, i} w{j, i}; w{j, i}' 1];
+      prog = prog.withPSD(M{j, i});
+      
+      % store the 'bilinear variable' that replaces prod(w{i}) in the
+      % constraint
+      bilinear_vars(i) = W{j, i}(1, 2);
+      
+      % initial guess for solution
+      sol_w{j, i} = zeros(size(w{j, i}));
+    end
+    
+    % change degrees so that we use the bilinear variables instead of products
+    % of the original variables
+    degrees(bilinear_indices, :) = 0;
+    [row, col, value] = find(degrees);
+    row = [row; bilinear_indices]; %#ok<AGROW>
+    col = [col; n_vars + (1 : n_bilinear_vars)']; %#ok<AGROW>
+    value = [value; ones(size(bilinear_indices))]; %#ok<AGROW>
+    degrees = sparse(row, col, value, size(degrees, 1), n_vars + n_bilinear_vars);
+    
+    % recompose coefficients after getting rid of bilinear monomials and adding
+    % the bilinear variables instead
+    coefficients_linear = recomp([vars; bilinear_vars], degrees, speye(size(degrees, 1)));
+  else
+    % figure out in which variables the constraint is bilinear
+    w{j} = vars(any(degrees_bilinear > 0, 1));
+    
+    % initial guess for solution
+    sol_w{j} = zeros(size(w{j}));
+    
+    % create symmetric W matrix
+    n_Wvec = spotprog.psdDimToNo(length(w{j}));
+    [prog, Wvec] = prog.newFree(n_Wvec, 1);
+    W{j} = mss_v2s(Wvec);
+    
+    % create matrix that can be used to look up indices of elements of W in
+    % Wvec
+    Wvec_index_lookup = mss_v2s(1 : n_Wvec);
     
     % set up the PSD constraint
-    M{j, i} = [W{j, i} w{j, i}; w{j, i}' 1];
-    prog = prog.withPSD(M{j, i});
+    M{j} = [W{j} w{j}; w{j}' 1];
+    prog = prog.withPSD(M{j});
     
-    % store the 'bilinear variable' that replaces prod(w{i}) in the
-    % constraint
-    bilinear_vars(i) = W{j, i}(1, 2);
+    % find indices into Wvec corresponding to bilinear variables
+    Wvec_indices = zeros(size(degrees_bilinear, 1), 1);
+    for i = 1 : size(degrees_bilinear, 1)
+      var_indices = find(degrees_bilinear(i, :));
+      Wvec_indices(i) = Wvec_index_lookup(var_indices(1), var_indices(2));
+    end
+    
+    % change degrees so that we use the bilinear variables instead of products
+    % of the original variables
+    degrees(bilinear_indices, :) = 0;
+    [row, col, value] = find(degrees);
+    row = [row; bilinear_indices]; %#ok<AGROW>
+    col = [col; n_vars + Wvec_indices]; %#ok<AGROW>
+    value = [value; ones(size(Wvec_indices))]; %#ok<AGROW>
+    degrees = sparse(row, col, value, size(degrees, 1), n_vars + length(Wvec));
+    
+    % recompose coefficients after getting rid of bilinear monomials and adding
+    % the bilinear variables instead
+    coefficients_linear = recomp([vars; Wvec], degrees, speye(size(degrees, 1)));
   end
-  
-  % initial guess for solution
-  sol_w{j} = cell(n_bilinear_vars, 1);
-  for i = 1 : n_bilinear_vars
-    sol_w{j, i} = zeros(size(w{j, i}));
-  end
-  
-  % change degrees so that we use the bilinear variables instead of products
-  % of the original variables
-  degrees(bilinear_indices, :) = 0;
-  [row, col, value] = find(degrees);
-  row = [row; bilinear_indices]; %#ok<AGROW>
-  col = [col; n_vars + (1 : n_bilinear_vars)']; %#ok<AGROW>
-  value = [value; ones(size(bilinear_indices))]; %#ok<AGROW>
-  degrees = sparse(row, col, value, size(degrees, 1), n_vars + n_bilinear_vars);
-  
-  % recompose coefficients after getting rid of bilinear monomials and adding
-  % the bilinear variables instead
-  coefficients_linear = recomp([vars; bilinear_vars], degrees, speye(size(degrees, 1)));
   
   % recompute constraint in terms of bilinear variables
   constr_linear = monomials * coefficients_linear;
@@ -113,14 +155,14 @@ for k = 1 : options.max_iters
   end
   sol = prog_k.minimize(f, solver, solver_options);
   sol_w = cellfun(@(x) double(sol.eval(x)), w, 'UniformOutput', false);
-  ranks = cellfun(@(x) rank(x, options.rank_tol), cellfun(@(x) double(sol.eval(x)), M, 'UniformOutput', false));
+  M_ranks = cellfun(@(x) rank(double(sol.eval(x)), options.rank_tol), M);
   
   disp(['objective value: ' num2str(double(sol.eval(f)))]);
-  disp(['max rank: ' num2str(max(max(ranks)))]);
-  disp(['number of bilinear variable matrices with rank > 1: ' num2str(sum(ranks(:) > 1))]);
+  disp(['max rank: ' num2str(max(max(M_ranks)))]);
+  disp(['number of bilinear variable matrices with rank > 1: ' num2str(sum(M_ranks(:) > 1))]);
   fprintf('\n');
   
-  if max(max(ranks)) == 1
+  if max(max(M_ranks)) == 1
     break;
   end
 end

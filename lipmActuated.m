@@ -1,4 +1,5 @@
 function lipmActuated()
+% path setup
 addpath(fullfile('util'));
 cleaner = onCleanup(@() rmpath(fullfile('util')));
 checkDependency('spotless');
@@ -7,7 +8,17 @@ setup();
 cd(oldpath);
 
 solver = getSolver();
-% solver = @spot_sedumi;
+solver_options = spot_sdp_default_options();
+solver_options.do_facial_reduction = false;
+solver_options.verbose = 0;
+bilinear_solve_options.max_iters = 50;
+bilinear_solve_options.rank_tol = 1e-3;
+verify_manual_barrier_function = false;
+L0_degree = 3;
+Lu_degree = 3;
+Lij_degree = 3;
+N_degree = 3;
+
 prog = spotsosprog;
 
 % Variables/Indeterminates
@@ -19,18 +30,19 @@ r = x(1);
 rd = x(2);
 
 % input limits
-u_max = 0.1;
+u_max = 1;
 u_vertices = [-u_max u_max];
 
 % dynamics
 f = @(x, u) lipmDynamics(x, u);
 
 % Barrier function
-dB = 2;
-% [prog, B, cB] = prog.newFreePoly(monomials(x, 0 : dB));
-% mB = monomialSubs('y', [r + rd; r - rd], 1 : dB);
-mB = monomials(x, 0:dB);
-[prog, B] = prog.newFreePoly(mB);
+if verify_manual_barrier_function
+  B = (r + rd)^2 / u_max^2 - 1;
+else
+  dB = 3;
+  [prog, B] = prog.newFreePoly(monomials(x, 0 : dB));
+end
 
 % Initial condition constraint
 x_star = [0; 0];
@@ -44,17 +56,16 @@ g_X0 = - (unstable_eigenvectors' * x)' * (unstable_eigenvectors' * x);
 % g_X0 = - (x - [1; 1])' * (x - [1; 1]);
 % g_X0 = -(r + rd)' * (r + rd);
 
-dL1 = 3;
-[prog, L1] = prog.newSOSPoly(monomials(x, 0 : dL1));
-prog = prog.withSOS(-B - L1 * g_X0 - 1e-4); % B <= -1 on g_X0
+[prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
+prog = prog.withSOS(-B - L0 * g_X0 - 1); % B <= -1 on g_X0
 
 % Unsafe set constraint
-dL2 = 3;
-[prog, L2] = prog.newSOSPoly(monomials(x, 0 : dL2));
+[prog, Lu] = prog.newSOSPoly(monomials(x, 0 : Lu_degree));
 % rf_dist = 10000;
 % g_Xu = r' * r - rf_dist^2;
-g_Xu = (r + rd)' * (r + rd) - 10;
-prog = prog.withSOS(B - L2 * g_Xu);% - 1); % B >= 1 on g_Xu
+x_ic_dist = 0.5;
+g_Xu = (r + rd)' * (r + rd) - x_ic_dist^2;
+prog = prog.withSOS(B - Lu * g_Xu);% - 1); % B >= 1 on g_Xu
 
 % Barrier function derivative constraint
 n_u_vertices = size(u_vertices, 2);
@@ -66,27 +77,31 @@ for i = 1 : n_u_vertices
 end
 
 bilinear_sos_constraints = cell(size(u_vertices, 2), 1);
-L_degree = 3;
 for j = 1 : size(u_vertices, 2)
   region = msspoly(0);
   for i = 1 : size(u_vertices, 2)
     if i ~= j
-      [prog, Lij] = prog.newSOSPoly(monomials(x, 0 : L_degree));
+      [prog, Lij] = prog.newSOSPoly(monomials(x, 0 : Lij_degree));
       region = region + Lij * (Bdot{j} - Bdot{i});
     end
   end
   
-  [prog, N] = prog.newFreePoly(monomials(x, 0 : L_degree));
+  [prog, N] = prog.newFreePoly(monomials(x, 0 : N_degree));
   region = region + N * B;
-  bilinear_sos_constraints{j} = -Bdot{j} + region;
+  
+  if verify_manual_barrier_function
+    prog = prog.withSOS(-Bdot{j} + region);
+  else
+    bilinear_sos_constraints{j} = -Bdot{j} + region;
+  end
 end
 
-solver_options = spot_sdp_default_options();
-solver_options.do_facial_reduction = true;
-solver_options.verbose = 0;
-options.max_iters = 15;
-options.rank_tol = 1e-3;
-[prog, sol] = solveBilinear(prog, bilinear_sos_constraints, x, solver, solver_options, options);
+if verify_manual_barrier_function
+  sol = prog.minimize(0, solver, solver_options);
+  disp(['status: ' char(sol.status)]);
+else
+  [~, sol] = solveBilinear(prog, bilinear_sos_constraints, x, solver, solver_options, bilinear_solve_options);
+end
 
 B_sol = sol.eval(B);
 Bdot_sol = cellfun(@(x) sol.eval(x), Bdot, 'UniformOutput', false);

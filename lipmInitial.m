@@ -56,7 +56,7 @@ constr = -Bdot + L*B; % Bdot < 0 when B = 0
 
 solver_options = spot_sdp_default_options();
 solver_options.do_facial_reduction = true;
-solver_options.verbose = 1;
+solver_options.verbose = 0;
 options.max_iters = 20;
 options.rank_tol = 1e-7;
 [prog, sol] = solveBilinear(prog, constr, x, solver, solver_options, options);

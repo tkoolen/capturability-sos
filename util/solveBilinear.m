@@ -10,11 +10,17 @@ end
 if ~isfield(options, 'rank_tol')
   options.rank_tol = 1e-5;
 end
+if ~isfield(options, 'tol')
+  options.tol = 1e-6;
+end
 if ~isfield(options, 'objective_type')
   options.objective_type = 'sum';
 end
 if ~isfield(options, 'psd_constraint_size')
   options.psd_constraint_size = 3;
+end
+if ~isfield(options, 'alpha')
+  options.alpha = 0;
 end
 
 if ~iscell(constraints)
@@ -77,6 +83,7 @@ for j = 1 : n_constraints
 end
 
 % iteratively solve
+t = inf;
 for k = 1 : options.max_iters
   disp(['iteration ' num2str(k)]);
   if strcmp(options.objective_type, 'sum')
@@ -92,18 +99,40 @@ for k = 1 : options.max_iters
   else
     error('objective type not recognized');
   end
-  sol = prog_k.minimize(f, solver, solver_options);
-  sol_w = cellfun(@(x) double(sol.eval(x)), w, 'UniformOutput', false);
-  M_ranks = cellfun(@(x) rank(double(sol.eval(x)), options.rank_tol), M);
   
+  sol = prog_k.minimize(f, solver, solver_options);
+  
+  sol_w_new = cellfun(@(x) double(sol.eval(x)), w, 'UniformOutput', false);
+  sol_W = cellfun(@(x) double(sol.eval(x)), W, 'UniformOutput', false);
+  M_ranks = cellfun(@(x) rank(double(sol.eval(x)), options.rank_tol), M);
+  t_new = cellfun(@(W, w, w_new) trace(W) - 2 * w' * w_new + w' * w, sol_W, sol_w, sol_w_new);
+  delta_t = t - t_new;
+  sol_w = sol_w_new;
+  t = t_new;
+
   disp(['objective value: ' num2str(double(sol.eval(f)))]);
   disp(['max rank: ' num2str(max(max(M_ranks)))]);
   disp(['number of bilinear variable matrices with rank > 1: ' num2str(sum(M_ranks(:) > 1))]);
-  fprintf('\n');
+  disp(['max(t): ' num2str(max(t))]);
+  disp(['max(delta t): ' num2str(max(delta_t))]);
   
-  if max(max(M_ranks)) == 1
+  if all(delta_t < options.tol)
     break;
   end
+
+%   if max(max(M_ranks)) == 1
+%     break;
+%   elseif k < options.max_iters
+%     if options.alpha > 0
+%       try
+%         sol_w = cellfun(@(w, W) mvnrnd(w, computeCovariance(w, W, options.alpha))', sol_w, sol_W, 'UniformOutput', false);
+%       catch
+%         % just use the old sol_w
+%         disp('mvnrnd failed.');
+%       end
+%     end
+%   end
+  fprintf('\n');
 end
 
 
@@ -117,4 +146,12 @@ f = zeros(1, 1, 'msspoly');
 for i = 1 : numel(W)
   f = f + trace(W{i}) - 2 * sol_w{i}' * w{i};
 end
+end
+
+function Sigma = computeCovariance(w, W, alpha)
+Sigma = alpha * (W - w * w');
+[V, D] = eig(Sigma);
+d = diag(D);
+d(d <= 0) = 1e-10;
+Sigma = (V * diag(d)) / V;
 end

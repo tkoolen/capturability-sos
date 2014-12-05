@@ -119,13 +119,11 @@ for k = 1 : options.max_iters
   disp(['number of bilinear variable matrices with rank > 1: ' num2str(sum(M_ranks(:) > 1))]);
   disp(['max(t): ' num2str(max(t))]);
   disp(['max(delta t): ' num2str(max(delta_t))]);
-  
-  if max(max(M_ranks)) == 1
-    success = true;
-    break;
-  end
-  
+ 
   if all(abs(delta_t) < options.tol)
+    if t < 10 * options.tol % TODO: make separate parameter
+      success = true;
+    end
     break;
   end
 

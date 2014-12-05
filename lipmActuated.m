@@ -34,12 +34,13 @@ if verify_manual_barrier_function
   options.B_manual = @(x) (x(1) + x(2))^2 / (u_max)^2 - 1;
 end
 
-B_prev = [];
+X0_margin = 1;
+
 reset = [];
 s_min = [];
 s_max = [];
 g_Xguard = [];
-[B, u] = capturabilityBarrierRecursive(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_X0, options);
+[B, u] = capturabilityBarrierRecursive(g_X0, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, X0_margin, options);
 
 end
 

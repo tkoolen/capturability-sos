@@ -1,4 +1,4 @@
-function [B_fun, u_fun] = capturabilityBarrierRecursive(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_X0, options)
+function [B_fun, u_fun] = capturabilityBarrierRecursive(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, X0_margin, options)
 
 % options
 solver_options = spot_sdp_default_options();
@@ -83,13 +83,11 @@ epsilon = 0; % TODO
 bilinear_sos_constraints{end + 1} = -Bdot + NBdot * B - epsilon; % Bdot <= -epsilon on B(x) = 0
 
 % Initial condition constraint
-g_X0 = g_X0(x);
-X0_margin = 1;
+g_X0 = B_prev(x);
 [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
 prog = prog.withSOS(-B - L0 * g_X0 - X0_margin); % B <= -X0_margin on g_X0
 
 % Solve
-
 B_fun = [];
 u_fun = [];
 if verify_manual_barrier_function

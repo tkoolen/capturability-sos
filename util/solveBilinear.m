@@ -1,4 +1,4 @@
-function [prog, sol] = solveBilinear(prog, constraints, x, solver, solver_options, options)
+function [sol, success, sol_w] = solveBilinear(prog, constraints, x, solver, solver_options, options)
 % solves SOS program prog subject to additional bilinear SOS constraint
 % constr. The constraint constr is bilinear in coefficients c1 and c2, and
 % has free variables x.
@@ -11,16 +11,13 @@ if ~isfield(options, 'rank_tol')
   options.rank_tol = 1e-5;
 end
 if ~isfield(options, 'tol')
-  options.tol = 1e-6;
+  options.tol = 1e-4;
 end
 if ~isfield(options, 'objective_type')
   options.objective_type = 'sum';
 end
 if ~isfield(options, 'psd_constraint_size')
   options.psd_constraint_size = 3;
-end
-if ~isfield(options, 'alpha')
-  options.alpha = 0;
 end
 
 if ~iscell(constraints)
@@ -72,7 +69,7 @@ end
 sol_w = cell(size(w));
 for i = 1 : size(w, 1)
   for j = 1 : size(w, 2)
-    sol_w{i, j} = zeros(size(w{i, j}));
+    sol_w{i, j} = 2 * randn(size(w{i, j}));
   end
 end
 
@@ -87,6 +84,7 @@ end
 
 % iteratively solve
 t = inf;
+success = false;
 for k = 1 : options.max_iters
   disp(['iteration ' num2str(k)]);
   if strcmp(options.objective_type, 'sum')
@@ -113,34 +111,22 @@ for k = 1 : options.max_iters
   sol_w = sol_w_new;
   t = t_new;
 
-  disp(['objective value: ' num2str(double(sol.eval(f)))]);
   disp(['max rank: ' num2str(max(max(M_ranks)))]);
   disp(['number of bilinear variable matrices with rank > 1: ' num2str(sum(M_ranks(:) > 1))]);
   disp(['max(t): ' num2str(max(t))]);
   disp(['max(delta t): ' num2str(max(delta_t))]);
   
-  if all(delta_t < options.tol)
+  if max(max(M_ranks)) == 1
+    success = true;
+    break;
+  end
+  
+  if all(abs(delta_t) < options.tol)
     break;
   end
 
-%   if max(max(M_ranks)) == 1
-%     break;
-%   elseif k < options.max_iters
-%     if options.alpha > 0
-%       try
-%         sol_w = cellfun(@(w, W) mvnrnd(w, computeCovariance(w, W, options.alpha))', sol_w, sol_W, 'UniformOutput', false);
-%       catch
-%         % just use the old sol_w
-%         disp('mvnrnd failed.');
-%       end
-%     end
-%   end
   fprintf('\n');
 end
-
-
-% residual = sol_w * sol_w' - sol_W;
-% disp(['residual norm: ' num2str(norm(residual))]);
 
 end
 

@@ -57,19 +57,20 @@ end
 % g_Xu = r' * r - rf_dist^2;
 x_ic_dist = 3;
 g_Xu = (r + rd)' * (r + rd) - x_ic_dist^2;
-prog = prog.withSOS(B - LF * g_Xu - 1); % B >= 1 on g_Xu
+prog = prog.withSOS(B - LF * g_Xu); % B >= 0 on g_Xu
 
 % Input limits
-bilinear_sos_constraints = cell(3, 1);
+bilinear_sos_constraints = cell(0);
 [prog, Nu_min] = prog.newFreePoly(monomials(x, 0 : Nu_degree));
-bilinear_sos_constraints{1} = u - u_min + Nu_min * B; % u >= u_min on B(x) = 0
+bilinear_sos_constraints{end + 1} = u - u_min + Nu_min * B; % u >= u_min on B(x) = 0
 [prog, Nu_max] = prog.newFreePoly(monomials(x, 0 : Nu_degree));
-bilinear_sos_constraints{2} = u_max - u + Nu_max * B; % u <= u_max on B(x) = 0
+bilinear_sos_constraints{end + 1} = u_max - u + Nu_max * B; % u <= u_max on B(x) = 0
 
 % Barrier function derivative constraint
 Bdot = diff(B, x) * f(x, u);
 [prog, NBdot] = prog.newFreePoly(monomials(x, 0 : NBdot_degree));
-bilinear_sos_constraints{3} = -Bdot + NBdot * B;
+epsilon = 1e-10;
+bilinear_sos_constraints{end + 1} = -Bdot + NBdot * B - epsilon; % Bdot <= -epsilon on B(x) = 0
 
 % Initial condition constraint
 prog_base = prog;

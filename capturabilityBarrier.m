@@ -8,7 +8,7 @@ solver_options.verbose = 0;
 bilinear_solve_options.max_iters = 75;
 bilinear_solve_options.rank_tol = 1e-5;
 
-use_stored_initial_guess = true;
+use_stored_initial_guess = false;
 verify_manual_barrier_function = isfield(options, 'B_manual');
 barrier_grow_iters = 5;
 
@@ -29,25 +29,6 @@ NB_prev_reset_degree = 2;
 % spotless setup
 solver = getSolver();
 prog = spotsosprog;
-
-if ~isempty(reset)
-  % % discrete input
-  % ns = length(s_min);
-  % [prog, s] = prog.newFreePoly(monomials(x, 0 : s_degree), ns);
-  % [prog, Ns_min] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
-  % [prog, Ls_guard_min] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
-  % bilinear_sos_constraints{end + 1} = s - s_min + Ns_min * B + Ls_guard_min * g_Xguard(x); % s >= s_min on B(x) = 0, g_Xguard(x) <= 0
-  % [prog, Ns_max] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
-  % [prog, Ls_guard_max] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
-  % bilinear_sos_constraints{end + 1} = s_max - s + Ns_max * B + Ls_guard_max * g_Xguard(x); % s <= s_max on B(x) = 0, g_Xguard(x) <= 0
-  
-  % % B_prev(xPrime) <= 0 wherever xPrime = reset(x, s), B(x) <= 0, g_Xguard <= 0
-  % [prog, xPrime] = prog.newIndeterminate('y', nstates);
-  % [prog, LB_prev_B] = prog.newSOSPoly(monomials(x, 0 : LB_prev_B_degree));
-  % [prog, LB_prev_Xfailed] = prog.newSOSPoly(monomials(x, 0 : LB_prev_Xfailed_degree));
-  % [prog, NB_prev_reset] = prog.newFreePoly(monomials(x, 0 : NB_prev_reset_degree));
-  % bilinear_sos_constraints{end + 1} = -B_prev(xPrime) + NB_prev_reset * reset(x, s) + LB_prev_B * B + LB_prev_Xfailed * g_Xfailed(x);
-end
 
 % Indeterminates
 [prog, x] = prog.newIndeterminate('x', nstates);
@@ -87,6 +68,28 @@ g_Xstar = g_Xstar(x);
 [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
 prog = prog.withSOS(-B - L0 * g_Xstar - 1); % B <= -X0_margin on Xstar
 
+if isempty(reset)
+  indeterminates = x;
+else
+  % discrete input
+  ns = length(s_min);
+  [prog, s] = prog.newFreePoly(monomials(x, 0 : s_degree), ns);
+  [prog, Ns_min] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
+  [prog, Ls_guard_min] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
+  bilinear_sos_constraints{end + 1} = s - s_min + Ns_min * B + Ls_guard_min * g_Xguard(x); % s >= s_min on B(x) = 0, g_Xguard(x) <= 0
+  [prog, Ns_max] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
+  [prog, Ls_guard_max] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
+  bilinear_sos_constraints{end + 1} = s_max - s + Ns_max * B + Ls_guard_max * g_Xguard(x); % s <= s_max on B(x) = 0, g_Xguard(x) <= 0
+  
+  % B_prev(xPrime) <= 0 wherever xPrime = reset(x, s), B(x) <= 0, g_Xguard <= 0
+  [prog, x_prime] = prog.newIndeterminate('y', nstates);
+  [prog, LB_prev_B] = prog.newSOSPoly(monomials(x, 0 : LB_prev_B_degree));
+  [prog, LB_prev_Xfailed] = prog.newSOSPoly(monomials(x, 0 : LB_prev_Xfailed_degree));
+  [prog, NB_prev_reset] = prog.newFreePoly(monomials(x, 0 : NB_prev_reset_degree));
+  bilinear_sos_constraints{end + 1} = -B_prev(x_prime) + NB_prev_reset * reset(x, s) + LB_prev_B * B + LB_prev_Xfailed * g_Xfailed(x);
+  indeterminates = [x; x_prime];
+end
+
 % Solve
 B_fun = [];
 u_fun = [];
@@ -121,7 +124,7 @@ else
   % iteratively grow zero level set of barrier function
   prog_base = prog;
   for i = 1 : barrier_grow_iters
-    [sol, success, sol_w] = solveBilinear(prog, bilinear_sos_constraints, x, solver, solver_options, bilinear_solve_options);
+    [sol, success, sol_w] = solveBilinear(prog, bilinear_sos_constraints, indeterminates, solver, solver_options, bilinear_solve_options);
     disp(['status: ' char(sol.status)]);
     disp(['success: ' num2str(success)])
     fprintf('\n\n');

@@ -13,10 +13,6 @@ oldpath = cd(fullfile('..', 'frlib'));
 setup();
 cd(oldpath);
 
-% dynamics
-nstates = 2;
-f = @lipmDynamics;
-
 % input limits
 u_min = -1;
 u_max = 1;
@@ -27,7 +23,7 @@ g_Xfailed = @(x) (x(1) + x(2))^2 - x_ic_dist^2;
 
 % initial states
 x_star = [0; 0];
-g_Xstar = @(x) -(x - x_star)' * (x - x_star);
+g_Xstar = @(x) -(x(1:2) - x_star)' * (x(1:2) - x_star);
 
 % manual barrier function
 B_manual = @(x) (x(1) + x(2))^2 / (u_max)^2 - 1;
@@ -47,11 +43,20 @@ t_min = 1;
 g_Xguard = @(x) -x(3) + t_min;
 
 % zero-step capturability
-zero_step = true;
+zero_step = false;
 if zero_step
+  % dynamics
+  nstates = 2;
+  f = @lipmDynamics;
+  
   [B, u] = capturabilityBarrier([], f, nstates, u_min, u_max, [], s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options);
 else
   % 1-step capturability test
+  
+  % dynamics
+  nstates = 3;
+  f = @(x, u) [lipmDynamics(x, u); 1];
+
   [B, u] = capturabilityBarrier(B_manual, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options);
 end
 

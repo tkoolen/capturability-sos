@@ -4,6 +4,7 @@ if nargin < 1
   verify_manual_barrier_function = false;
 end
 options.verify_manual_barrier_function = verify_manual_barrier_function;
+options.plotfun = @visualize;
 
 % path setup
 addpath(fullfile('util'));
@@ -38,7 +39,7 @@ reset = [];
 s_min = [];
 s_max = [];
 g_Xguard = [];
-capturabilityBarrierRecursive(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_X0, options);
+[B, u] = capturabilityBarrierRecursive(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_X0, options);
 
 end
 

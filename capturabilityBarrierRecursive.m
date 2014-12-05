@@ -1,16 +1,19 @@
-function B = capturabilityBarrierRecursive(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_X0, options)
+function [B_fun, u_fun] = capturabilityBarrierRecursive(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_X0, options)
 
 % options
-use_stored_initial_guess = true;
 solver_options = spot_sdp_default_options();
 solver_options.do_facial_reduction = false;
 solver_options.verbose = 0;
+
 bilinear_solve_options.max_iters = 75;
 bilinear_solve_options.rank_tol = 1e-5;
+
+use_stored_initial_guess = true;
 verify_manual_barrier_function = isfield(options, 'B_manual');
+barrier_grow_iters = 5;
 
 % degrees
-u_degree = 2;
+u_degree = 1;
 Nu_degree = 2;
 B_degree = 2;
 L0_degree = 2;
@@ -79,13 +82,15 @@ epsilon = 0; % TODO
 bilinear_sos_constraints{end + 1} = -Bdot + NBdot * B - epsilon; % Bdot <= -epsilon on B(x) = 0
 
 % Initial condition constraint
-prog_base = prog;
 g_X0 = g_X0(x);
 X0_margin = 1;
 [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
 prog = prog.withSOS(-B - L0 * g_X0 - X0_margin); % B <= -X0_margin on g_X0
 
 % Solve
+
+B_fun = [];
+u_fun = [];
 if verify_manual_barrier_function
   for i = 1 : length(bilinear_sos_constraints)
     % SOS constraints that would normally be bilinear are now just linear
@@ -94,11 +99,15 @@ if verify_manual_barrier_function
   end
   sol = prog.minimize(0, solver, solver_options);
   disp(char(sol.status));
-  
+ 
   B_sol = sol.eval(B);
   Bdot_sol = sol.eval(Bdot);
   u_sol = sol.eval(u);
-  visualize(B_sol, Bdot_sol, x, u_sol, f);
+  options.plotfun(B_sol, Bdot_sol, x, u_sol, f);
+
+  % TODO: if success...
+  B_fun = @(x_new) subs(B_sol, x, x_new);
+  u_fun = @(x_new) subs(u_sol, x, x_new);
   
   % store initial guess
   initial_guess = {double(sol.eval([decomp(u, x); decomp(B_full, x); decomp(Nu_min, x); decomp(Nu_max, x); decomp(NBdot, x)]))};
@@ -111,7 +120,8 @@ else
   end
   
   % iteratively grow zero level set of barrier function
-  for i = 1 : 20
+  prog_base = prog;
+  for i = 1 : barrier_grow_iters
     [sol, success, sol_w] = solveBilinear(prog, bilinear_sos_constraints, x, solver, solver_options, bilinear_solve_options);
     disp(['status: ' char(sol.status)]);
     disp(['success: ' num2str(success)])
@@ -123,21 +133,21 @@ else
     
     if success
       sol_w_best = sol_w;
-      X0_margin = 0;
-      g_X0 = -B_sol;
-      visualize(B_sol, Bdot_sol, x, u_sol, f);
+      options.plotfun(B_sol, Bdot_sol, x, u_sol, f);
+      
+      B_fun = @(x_new) subs(B_sol, x, x_new);
+      u_fun = @(x_new) subs(u_sol, x, x_new);
+      
+      prog = prog_base;
+      [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
+      prog = prog.withSOS(-B - L0 * -B_sol);
     end
-    
-    prog = prog_base;
-    [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
-    prog = prog.withSOS(-B - L0 * g_X0 - X0_margin);
-    
+
     if exist('sol_w_best', 'var')
       bilinear_solve_options.initial_guess = addNoise(sol_w_best, 1);
     end
   end
 end
-
 
 end
 

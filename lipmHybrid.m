@@ -41,6 +41,6 @@ g_Xfailed = @(x) (x(1) + x(2))^2 - x_ic_dist^2;
 % Barrier function for previous level
 B_prev = @(x) (x(1) + x(2))^2 / (u_max)^2 - 1;
 
-B = capturabilityBarrierRecursive(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, options);
+B = capturabilityBarrier(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, options);
 
 end

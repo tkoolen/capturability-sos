@@ -40,7 +40,7 @@ reset = [];
 s_min = [];
 s_max = [];
 g_Xguard = [];
-[B, u] = capturabilityBarrierRecursive(g_X0, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, X0_margin, options);
+[B, u] = capturabilityBarrier(g_X0, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, X0_margin, options);
 
 end
 

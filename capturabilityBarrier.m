@@ -1,4 +1,4 @@
-function [B_fun, u_fun] = capturabilityBarrierRecursive(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, X0_margin, options)
+function [B_fun, u_fun] = capturabilityBarrier(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, X0_margin, options)
 
 % options
 solver_options = spot_sdp_default_options();

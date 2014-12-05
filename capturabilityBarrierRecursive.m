@@ -30,23 +30,24 @@ NB_prev_reset_degree = 2;
 solver = getSolver();
 prog = spotsosprog;
 
-
-% % discrete input
-% ns = length(s_min);
-% [prog, s] = prog.newFreePoly(monomials(x, 0 : s_degree), ns);
-% [prog, Ns_min] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
-% [prog, Ls_guard_min] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
-% bilinear_sos_constraints{end + 1} = s - s_min + Ns_min * B + Ls_guard_min * g_Xguard(x); % s >= s_min on B(x) = 0, g_Xguard(x) <= 0
-% [prog, Ns_max] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
-% [prog, Ls_guard_max] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
-% bilinear_sos_constraints{end + 1} = s_max - s + Ns_max * B + Ls_guard_max * g_Xguard(x); % s <= s_max on B(x) = 0, g_Xguard(x) <= 0
-
-% % B_prev(xPrime) <= 0 wherever xPrime = reset(x, s), B(x) <= 0, g_Xguard <= 0
-% [prog, xPrime] = prog.newIndeterminate('y', nstates);
-% [prog, LB_prev_B] = prog.newSOSPoly(monomials(x, 0 : LB_prev_B_degree));
-% [prog, LB_prev_Xfailed] = prog.newSOSPoly(monomials(x, 0 : LB_prev_Xfailed_degree));
-% [prog, NB_prev_reset] = prog.newFreePoly(monomials(x, 0 : NB_prev_reset_degree));
-% bilinear_sos_constraints{end + 1} = -B_prev(xPrime) + NB_prev_reset * reset(x, s) + LB_prev_B * B + LB_prev_Xfailed * g_Xfailed(x);
+if ~isempty(reset)
+  % % discrete input
+  % ns = length(s_min);
+  % [prog, s] = prog.newFreePoly(monomials(x, 0 : s_degree), ns);
+  % [prog, Ns_min] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
+  % [prog, Ls_guard_min] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
+  % bilinear_sos_constraints{end + 1} = s - s_min + Ns_min * B + Ls_guard_min * g_Xguard(x); % s >= s_min on B(x) = 0, g_Xguard(x) <= 0
+  % [prog, Ns_max] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
+  % [prog, Ls_guard_max] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
+  % bilinear_sos_constraints{end + 1} = s_max - s + Ns_max * B + Ls_guard_max * g_Xguard(x); % s <= s_max on B(x) = 0, g_Xguard(x) <= 0
+  
+  % % B_prev(xPrime) <= 0 wherever xPrime = reset(x, s), B(x) <= 0, g_Xguard <= 0
+  % [prog, xPrime] = prog.newIndeterminate('y', nstates);
+  % [prog, LB_prev_B] = prog.newSOSPoly(monomials(x, 0 : LB_prev_B_degree));
+  % [prog, LB_prev_Xfailed] = prog.newSOSPoly(monomials(x, 0 : LB_prev_Xfailed_degree));
+  % [prog, NB_prev_reset] = prog.newFreePoly(monomials(x, 0 : NB_prev_reset_degree));
+  % bilinear_sos_constraints{end + 1} = -B_prev(xPrime) + NB_prev_reset * reset(x, s) + LB_prev_B * B + LB_prev_Xfailed * g_Xfailed(x);
+end
 
 % Indeterminates
 [prog, x] = prog.newIndeterminate('x', nstates);
@@ -106,8 +107,8 @@ if verify_manual_barrier_function
   options.plotfun(B_sol, Bdot_sol, x, u_sol, f);
 
   % TODO: if success...
-  B_fun = @(x_new) subs(B_sol, x, x_new);
-  u_fun = @(x_new) subs(u_sol, x, x_new);
+  B_fun = makeFunction(B_sol, x);
+  u_fun = makeFunction(u_sol, x);
   
   % store initial guess
   initial_guess = {double(sol.eval([decomp(u, x); decomp(B_full, x); decomp(Nu_min, x); decomp(Nu_max, x); decomp(NBdot, x)]))};
@@ -135,8 +136,8 @@ else
       sol_w_best = sol_w;
       options.plotfun(B_sol, Bdot_sol, x, u_sol, f);
       
-      B_fun = @(x_new) subs(B_sol, x, x_new);
-      u_fun = @(x_new) subs(u_sol, x, x_new);
+      B_fun = makeFunction(B_sol, x);
+      u_fun = makeFunction(u_sol, x);
       
       prog = prog_base;
       [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
@@ -157,5 +158,17 @@ for row = 1 : size(w, 1)
   for col = 1 : size(w, 2)
     w_noisy{row, col} = w_noisy{row, col} + sigma * randn;
   end
+end
+end
+
+function fun = makeFunction(poly, var)
+fun = @(input) easySubs(poly, var, input);
+end
+
+function ret = easySubs(poly, var, input)
+if isnumeric(input)
+  ret = full(msubs(poly, var, input));
+else
+  ret = subs(poly, var, input);
 end
 end

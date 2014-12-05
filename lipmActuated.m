@@ -1,4 +1,4 @@
-function lipmActuated()
+function lipmActuated(verify_manual_barrier_function)
 % path setup
 addpath(fullfile('util'));
 checkDependency('spotless');
@@ -7,7 +7,10 @@ setup();
 cd(oldpath);
 
 % parameters
-verify_manual_barrier_function = true;
+if nargin < 1
+  verify_manual_barrier_function = false;
+end
+use_stored_initial_guess = true;
 solver_options = spot_sdp_default_options();
 solver_options.do_facial_reduction = false;
 solver_options.verbose = 0;
@@ -91,9 +94,16 @@ if verify_manual_barrier_function
   Bdot_sol = sol.eval(Bdot);
   u_sol = sol.eval(u);
   visualize(B_sol, Bdot_sol, x, u_sol, f);
+  
+  initial_guess = {double(sol.eval([decomp(u, x); decomp(B_full, x); decomp(Nu_min, x); decomp(Nu_max, x); decomp(NBdot, x)]))};
+  save 'initial_guess.mat' initial_guess;
 else
+  if use_stored_initial_guess
+    load('initial_guess.mat');
+    bilinear_solve_options.initial_guess = addNoise(initial_guess, 0.5);
+  end
   for i = 1 : 20
-    [sol, success] = solveBilinear(prog, bilinear_sos_constraints, x, solver, solver_options, bilinear_solve_options);
+    [sol, success, sol_w] = solveBilinear(prog, bilinear_sos_constraints, x, solver, solver_options, bilinear_solve_options);
     disp(['status: ' char(sol.status)]);
     disp(['success: ' num2str(success)])
     fprintf('\n\n');
@@ -103,9 +113,13 @@ else
     u_sol = sol.eval(u);
     
     if success
+      sol_w_best = sol_w;
       X0_margin = 0;
       g_X0 = -B_sol;
       visualize(B_sol, Bdot_sol, x, u_sol, f);
+    end
+    if exist('sol_w_best', 'var')
+      bilinear_solve_options.initial_guess = addNoise(sol_w_best, 1);
     end
     prog = prog_base;
     [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
@@ -113,6 +127,15 @@ else
   end
 end
 
+end
+
+function w_noisy = addNoise(w, sigma)
+w_noisy = w;
+for row = 1 : size(w, 1)
+  for col = 1 : size(w, 2)
+    w_noisy{row, col} = w_noisy{row, col} + sigma * randn;
+  end
+end
 end
 
 

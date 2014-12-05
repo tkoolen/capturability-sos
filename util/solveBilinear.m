@@ -66,10 +66,14 @@ else
 end
 
 % initial guess
-sol_w = cell(size(w));
-for i = 1 : size(w, 1)
-  for j = 1 : size(w, 2)
-    sol_w{i, j} = 2 * randn(size(w{i, j}));
+if isfield(options, 'initial_guess')
+  sol_w = options.initial_guess;
+else
+  sol_w = cell(size(w));
+  for i = 1 : size(w, 1)
+    for j = 1 : size(w, 2)
+      sol_w{i, j} = 2 * randn(size(w{i, j}));
+    end
   end
 end
 

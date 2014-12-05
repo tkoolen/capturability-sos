@@ -1,4 +1,4 @@
-function [B_fun, u_fun] = capturabilityBarrier(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, X0_margin, options)
+function [B_fun, u_fun] = capturabilityBarrier(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options)
 
 % options
 solver_options = spot_sdp_default_options();
@@ -83,9 +83,9 @@ epsilon = 0; % TODO
 bilinear_sos_constraints{end + 1} = -Bdot + NBdot * B - epsilon; % Bdot <= -epsilon on B(x) = 0
 
 % Initial condition constraint
-g_X0 = B_prev(x);
+g_Xstar = g_Xstar(x);
 [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
-prog = prog.withSOS(-B - L0 * g_X0 - X0_margin); % B <= -X0_margin on g_X0
+prog = prog.withSOS(-B - L0 * g_Xstar - 1); % B <= -X0_margin on Xstar
 
 % Solve
 B_fun = [];

@@ -27,20 +27,34 @@ g_Xfailed = @(x) (x(1) + x(2))^2 - x_ic_dist^2;
 
 % initial states
 x_star = [0; 0];
-g_X0 = @(x) -(x - x_star)' * (x - x_star);
+g_Xstar = @(x) -(x - x_star)' * (x - x_star);
 
 % manual barrier function
+B_manual = @(x) (x(1) + x(2))^2 / (u_max)^2 - 1;
 if verify_manual_barrier_function
-  options.B_manual = @(x) (x(1) + x(2))^2 / (u_max)^2 - 1;
+  options.B_manual = B_manual;
 end
 
-X0_margin = 1;
+% Reset map
+reset = @(x, s) [x(1) + s; x(2); 0];
 
-reset = [];
-s_min = [];
-s_max = [];
-g_Xguard = [];
-[B, u] = capturabilityBarrier(g_X0, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, X0_margin, options);
+% Discrete input limits
+s_min = -1;
+s_max = 1;
+
+% Guard
+t_min = 1;
+g_Xguard = @(x) -x(3) + t_min;
+
+% zero-step capturability
+zero_step = true;
+if zero_step
+  [B, u] = capturabilityBarrier([], f, nstates, u_min, u_max, [], s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options);
+else
+  % 1-step capturability test
+  [B, u] = capturabilityBarrier(B_manual, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options);
+end
+
 
 end
 

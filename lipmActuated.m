@@ -95,13 +95,17 @@ if verify_manual_barrier_function
   u_sol = sol.eval(u);
   visualize(B_sol, Bdot_sol, x, u_sol, f);
   
+  % store initial guess
   initial_guess = {double(sol.eval([decomp(u, x); decomp(B_full, x); decomp(Nu_min, x); decomp(Nu_max, x); decomp(NBdot, x)]))};
   save 'initial_guess.mat' initial_guess;
 else
+  % load initial guess
   if use_stored_initial_guess
     load('initial_guess.mat');
     bilinear_solve_options.initial_guess = addNoise(initial_guess, 0.5);
   end
+  
+  % iteratively grow zero level set of barrier function
   for i = 1 : 20
     [sol, success, sol_w] = solveBilinear(prog, bilinear_sos_constraints, x, solver, solver_options, bilinear_solve_options);
     disp(['status: ' char(sol.status)]);
@@ -118,12 +122,14 @@ else
       g_X0 = -B_sol;
       visualize(B_sol, Bdot_sol, x, u_sol, f);
     end
-    if exist('sol_w_best', 'var')
-      bilinear_solve_options.initial_guess = addNoise(sol_w_best, 1);
-    end
+    
     prog = prog_base;
     [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
     prog = prog.withSOS(-B - L0 * g_X0 - X0_margin);
+    
+    if exist('sol_w_best', 'var')
+      bilinear_solve_options.initial_guess = addNoise(sol_w_best, 1);
+    end
   end
 end
 

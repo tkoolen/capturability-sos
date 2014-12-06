@@ -1,16 +1,16 @@
-function [B_fun, u_fun] = capturabilityBarrier(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options)
+function [B_fun, u_fun, s_fun] = capturabilityBarrier(B_prev, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options)
 
 % options
 solver_options = spot_sdp_default_options();
 solver_options.do_facial_reduction = false;
 solver_options.verbose = 0;
 
-bilinear_solve_options.max_iters = 75;
+bilinear_solve_options.max_iters = 150; %75;
 bilinear_solve_options.rank_tol = 1e-5;
 
 use_stored_initial_guess = false;
 verify_manual_barrier_function = isfield(options, 'B_manual');
-barrier_grow_iters = 5;
+barrier_grow_iters = 1; %5;
 
 % degrees
 u_degree = 1;
@@ -19,12 +19,12 @@ B_degree = 2;
 L0_degree = 2;
 LF_degree = 2;
 NBdot_degree = 2;
-s_degree = 2;
+s_degree = 1;
 Ns_degree = 2;
 Ls_guard_degree = 2;
-LB_prev_B_degree = 2;
-LB_prev_Xfailed_degree = 2;
+NB_prev_B_degree = 2;
 NB_prev_reset_degree = 2;
+LB_prev_guard_degree = 2;
 
 % spotless setup
 solver = getSolver();
@@ -71,28 +71,33 @@ prog = prog.withSOS(-B - L0 * g_Xstar - 1); % B <= -X0_margin on Xstar
 if isempty(reset)
   indeterminates = x;
 else
+
   % discrete input
   ns = length(s_min);
   [prog, s] = prog.newFreePoly(monomials(x, 0 : s_degree), ns);
+  
+  % discrete input limits
   [prog, Ns_min] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
   [prog, Ls_guard_min] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
-  bilinear_sos_constraints{end + 1} = s - s_min + Ns_min * B + Ls_guard_min * g_Xguard(x); % s >= s_min on B(x) = 0, g_Xguard(x) <= 0
+  bilinear_sos_constraints{end + 1} = s - s_min + Ns_min * B - Ls_guard_min * g_Xguard(x); % s >= s_min on B(x) = 0, g_Xguard(x) >= 0
   [prog, Ns_max] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
   [prog, Ls_guard_max] = prog.newSOSPoly(monomials(x, 0 : Ls_guard_degree));
-  bilinear_sos_constraints{end + 1} = s_max - s + Ns_max * B + Ls_guard_max * g_Xguard(x); % s <= s_max on B(x) = 0, g_Xguard(x) <= 0
+  bilinear_sos_constraints{end + 1} = s_max - s + Ns_max * B - Ls_guard_max * g_Xguard(x); % s <= s_max on B(x) = 0, g_Xguard(x) >= 0
   
   % B_prev(xPrime) <= 0 wherever xPrime = reset(x, s), B(x) <= 0, g_Xguard <= 0
   [prog, x_prime] = prog.newIndeterminate('y', nstates);
-  [prog, LB_prev_B] = prog.newSOSPoly(monomials(x, 0 : LB_prev_B_degree));
-  [prog, LB_prev_Xfailed] = prog.newSOSPoly(monomials(x, 0 : LB_prev_Xfailed_degree));
-  [prog, NB_prev_reset] = prog.newFreePoly(monomials(x, 0 : NB_prev_reset_degree));
-  bilinear_sos_constraints{end + 1} = -B_prev(x_prime) + NB_prev_reset * reset(x, s) + LB_prev_B * B + LB_prev_Xfailed * g_Xfailed(x);
   indeterminates = [x; x_prime];
+
+  [prog, NB_prev_B] = prog.newFreePoly(monomials(indeterminates, 0 : NB_prev_B_degree));
+  [prog, NB_prev_reset] = prog.newFreePoly(monomials(indeterminates, 0 : NB_prev_reset_degree));
+  [prog, LB_prev_guard] = prog.newSOSPoly(monomials(indeterminates, 0 : LB_prev_guard_degree));
+  bilinear_sos_constraints{end + 1} = -B_prev(x_prime) + NB_prev_B * B - NB_prev_reset * (x_prime - reset(x, s)) - LB_prev_guard * g_Xguard(x);
 end
 
 % Solve
 B_fun = [];
 u_fun = [];
+s_fun = [];
 if verify_manual_barrier_function
   for i = 1 : length(bilinear_sos_constraints)
     % SOS constraints that would normally be bilinear are now just linear
@@ -110,6 +115,10 @@ if verify_manual_barrier_function
   % TODO: if success...
   B_fun = makeFunction(B_sol, x);
   u_fun = makeFunction(u_sol, x);
+  if ~isempty(reset)
+    s_sol = sol.eval(s);
+    s_fun = makeFunction(s_sol, x);
+  end
   
   % store initial guess
   initial_guess = {double(sol.eval([decomp(u, x); decomp(B_full, x); decomp(Nu_min, x); decomp(Nu_max, x); decomp(NBdot, x)]))};
@@ -139,6 +148,10 @@ else
       
       B_fun = makeFunction(B_sol, x);
       u_fun = makeFunction(u_sol, x);
+      if ~isempty(reset)
+        s_sol = sol.eval(s);
+        s_fun = makeFunction(s_sol, x);
+      end
       
       prog = prog_base;
       [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));

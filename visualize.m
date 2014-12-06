@@ -3,7 +3,7 @@ function visualize(B, Bdot, x, u, f)
 nmesh = 50;
 
 [X,Y] = meshgrid(linspace(-3,3,nmesh),linspace(-3,3,nmesh));
-gs_B = reshape(full(double(msubs(B,x,[X(:),Y(:)]'))), nmesh, nmesh);
+gs_B = reshape(full(double(msubs(B,x(1:2),[X(:),Y(:)]'))), nmesh, nmesh);
 % gs_Bdot = full(double(msubs(Bdot,x,[X(:),Y(:)]')));
 
 figure();
@@ -48,7 +48,7 @@ for j = 1 : length(r_levelset)
     disp(['max icp distance: ' num2str(max(abs(ric_levelset)))]);
     
 %     Bdot_levelset = full(double(msubs(Bdot, x, x_levelset_j)));
-    u_levelset_j = full(double(msubs(u, x, x_levelset_j)));
+    u_levelset_j = full(double(msubs(u, x(1:2), x_levelset_j)));
     
     f_levelset = zeros(size(x_levelset_j));
     for i = 1 : size(x_levelset_j, 2)
@@ -58,7 +58,7 @@ for j = 1 : length(r_levelset)
     end
     dt = 1e-3;
     dx_levelset = f_levelset * dt;
-    dB_levelset = full(double(msubs(B, x, x_levelset_j + dx_levelset))) - full(double(msubs(B, x, x_levelset_j)));
+    dB_levelset = full(double(msubs(B, x(1:2), x_levelset_j + dx_levelset))) - full(double(msubs(B, x, x_levelset_j)));
     
     quiver3(x_levelset_j(1, :), x_levelset_j(2, :), B_levelset_j, dx_levelset(1, :), dx_levelset(2, :), dB_levelset, 'r', 'LineWidth', 2);
   end

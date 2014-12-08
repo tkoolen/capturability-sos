@@ -1,10 +1,13 @@
-function testTrivialSystem(verify_manual_barrier_function)
+function testTrivialSystem(N, verify_manual_barrier_function)
 % parameters
 if nargin < 1
+  N = 0;
+end
+if nargin < 2
   verify_manual_barrier_function = false;
 end
 options.verify_manual_barrier_function = verify_manual_barrier_function;
-options.plotfun = @(varargin) [];
+options.plotfun = @visualizeTrivialSystem;
 
 % path setup
 addpath(fullfile('util'));
@@ -25,9 +28,7 @@ g_Xstar = @(x) -x^2;
 
 % manual barrier function
 B0_manual = @(x) x^2 - 1^2;
-if verify_manual_barrier_function
-  options.B_manual = B0_manual;
-end
+
 
 % Discrete input limits
 s_min = -1;
@@ -39,23 +40,28 @@ g_Xguard = @(x) 1;
 nstates = 1;
 
 % zero-step capturability
-zero_step = false;
-if zero_step
+if N == 0
   % dynamics
-  f = @(x, u) x;
+  f = @(x, u) 0;
   reset = [];
-    
+  if verify_manual_barrier_function
+    options.B_manual = B0_manual;
+  end
   [B, u] = capturabilityBarrier([], f, nstates, u_min, u_max, [], s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options);
 else % 1-step capturability test
   % dynamics
   f = @(x, u) 0;
   
   % Reset map
-  reset = @(x, s) s;
+  reset = @(x, s) x + s;
+
+  if verify_manual_barrier_function
+    B1_manual = @(x) x^2 - 1.5^2;
+    options.B_manual = B1_manual;
+    options.s_manual = @(x) -x / 2;
+  end
+  
   [B, u, s] = capturabilityBarrier(B0_manual, f, nstates, u_min, u_max, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options);
 end
 
 end
-
-
-

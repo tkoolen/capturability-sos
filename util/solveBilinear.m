@@ -1,4 +1,4 @@
-function [sol, success, sol_w] = solveBilinear(prog, constraints, x, solver, solver_options, options)
+function [sol, success, w, sol_w] = solveBilinear(prog, constraints, x, solver, solver_options, options)
 % solves SOS program prog subject to additional bilinear SOS constraint
 % constr. The constraint constr is bilinear in coefficients c1 and c2, and
 % has free variables x.
@@ -28,6 +28,8 @@ n_constraints = length(constraints);
 coefficients = cell(n_constraints, 1);
 monomials = cell(n_constraints, 1);
 
+vars_original = prog.variables;
+
 for j = 1 : n_constraints
   % find coefficients of constraint
   constraint = constraints{j};
@@ -35,7 +37,7 @@ for j = 1 : n_constraints
   coefficients{j} = recomp(vars, degrees, speye(size(degrees, 1)));
 end
 
-if options.psd_constraint_size == 3
+if options.psd_constraint_size == 3 % create one symmetric matrix + PSD constraint for all constraints
   [prog, coefficients_linear_cat, w{1}, W{1}, M{1}] = replaceBilinearTermsWithNewVariables(prog, vertcat(coefficients{:}));
   rows = cellfun(@(x) size(x, 1), coefficients);
   coefficients_linear = mat2cell(coefficients_linear_cat, rows);
@@ -66,10 +68,15 @@ else
 end
 
 % initial guess
-if isfield(options, 'initial_guess')
-  sol_w = options.initial_guess;
+sol_w = cell(size(w));
+if isfield(options, 'initial_guess') % initial_guess has values for all vars in prog before adding bilinear vars, so:
+  for i = 1 : size(w, 1)
+    for j = 1 : size(w, 2)
+      bilinear_var_indices = match(vars_original, w{i, j});
+      sol_w{i, j} = options.initial_guess(bilinear_var_indices);
+    end
+  end
 else
-  sol_w = cell(size(w));
   for i = 1 : size(w, 1)
     for j = 1 : size(w, 2)
       sol_w{i, j} = 2 * randn(size(w{i, j}));
@@ -77,11 +84,8 @@ else
   end
 end
 
-% sol_w{1} = [-1;0;1;0;2;1;0.619449752598972;1.23889968720675;0.619449940004886;1.23889971562202;1.23889988982526;0.619449972920757;0.619265375421246;-1.23853094943587;0.619265576385548;-1.23853093559576;1.23853113190555;0.619265560976367;-1.20215781829147;-1.52617319961545;0.67598418678354;-1.52617115341748;1.35185756350539;0.675985018495237;-1.20190026659921;1.52600274221761;0.67589694273694;1.52600223885057;1.3516805494012;0.675897176823038];
-% sol_w{1} = sol_w{1} + rand(size(sol_w{1})) * 1;
-
 % add SOS constraints using linear coefficients
-for j = 1 : n_constraints
+for j = 1 : length(constraints)
   constr_linear = monomials{j} * coefficients_linear{j};
   prog = prog.withSOS(constr_linear);
 end

@@ -1,9 +1,14 @@
-function visualize(B, Bdot, x, u, f)
+function visualizeLIPM(B, x, u, f)
 
 nmesh = 50;
 
 [X,Y] = meshgrid(linspace(-3,3,nmesh),linspace(-3,3,nmesh));
-gs_B = reshape(full(double(msubs(B,x(1:2),[X(:),Y(:)]'))), nmesh, nmesh);
+if length(x) == 2
+  gs_B = reshape(full(double(msubs(B,x,[X(:),Y(:)]'))), nmesh, nmesh);
+else
+  T = zeros(size(X));
+  gs_B = reshape(full(double(msubs(B,x,[X(:),Y(:),T(:)]'))), nmesh, nmesh);
+end
 % gs_Bdot = full(double(msubs(Bdot,x,[X(:),Y(:)]')));
 
 figure();

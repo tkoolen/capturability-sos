@@ -7,7 +7,7 @@ if nargin < 2
   verify_manual_barrier_function = true;
 end
 options.verify_manual_barrier_function = verify_manual_barrier_function;
-options.plotfun = @visualize;
+options.plotfun = @visualizeLIPM;
 
 % path setup
 addpath(fullfile('util'));

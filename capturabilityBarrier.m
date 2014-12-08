@@ -10,7 +10,7 @@ bilinear_solve_options.rank_tol = 1e-5;
 
 use_stored_initial_guess = true;
 verify_manual_barrier_function = isfield(options, 'B_manual');
-barrier_grow_iters = 5;
+barrier_grow_iters = 15;
 
 % degrees
 u_degree = 1;
@@ -22,9 +22,10 @@ NBdot_degree = 2;
 s_degree = 1;
 Ns_degree = 2;
 Ls_guard_degree = 2;
-NB_prev_B_degree = 2;
+NB_prev_B_degree = 0;
 NB_prev_reset_degree = 2;
 LB_prev_guard_degree = 2;
+LB_prev_degree = 2;
 
 % spotless setup
 solver = getSolver();
@@ -72,10 +73,12 @@ if isempty(reset)
   indeterminates = x;
 else
   % discrete input
+  ns = length(s_min);
   if verify_manual_barrier_function
     s = options.s_manual(x);
+    [prog, s_full] = prog.newFreePoly(monomials(x, 0 : s_degree), ns);
+    prog = prog.withPolyEqs(s - s_full);
   else
-    ns = length(s_min);
     [prog, s] = prog.newFreePoly(monomials(x, 0 : s_degree), ns);
   end
   
@@ -91,11 +94,14 @@ else
   [prog, x_prime] = prog.newIndeterminate('y', nstates);
   indeterminates = [x; x_prime];
 
-  [prog, LB_prev_B] = prog.newSOSPoly(monomials(indeterminates, 0 : NB_prev_B_degree));
+  [prog, LB_prev_B] = prog.newFreePoly(monomials(indeterminates, 0 : NB_prev_B_degree));
   [prog, LB_prev_guard] = prog.newSOSPoly(monomials(indeterminates, 0 : LB_prev_guard_degree));
-  [prog, NB_prev_reset] = prog.newFreePoly(monomials(indeterminates, 0 : NB_prev_reset_degree));
-  bilinear_sos_constraints{end + 1} = -B_prev(x_prime) + LB_prev_B * B - NB_prev_reset * sum((x_prime - reset(x, s)).^2) - LB_prev_guard * g_Xguard(x);
+  [prog, NB_prev_reset] = prog.newFreePoly(monomials(indeterminates, 0 : NB_prev_reset_degree), nstates);
+  bilinear_sos_constraints{end + 1} = -B_prev(x_prime) + LB_prev_B * B - NB_prev_reset' * (x_prime - reset(x, s)) - LB_prev_guard * g_Xguard(x);
 %   bilinear_sos_constraints{end + 1} = -B_prev(reset(x, s)) + LB_prev_B * B - LB_prev_guard * g_Xguard(x);
+  
+  [prog, LB_prev] = prog.newSOSPoly(monomials(x, 0 : LB_prev_degree));
+  prog = prog.withSOS(-B - LB_prev * -B_prev(x)); % B is at least as large as B_prev
 end
 
 % Solve
@@ -112,9 +118,8 @@ if verify_manual_barrier_function
   disp(char(sol.status));
  
   B_sol = sol.eval(B);
-  Bdot_sol = sol.eval(Bdot);
   u_sol = sol.eval(u);
-  options.plotfun(B_sol, Bdot_sol, x, u_sol, f);
+  options.plotfun(B_sol, x, u_sol, f);
 
   % TODO: if success...
   B_fun = makeFunction(B_sol, x);
@@ -124,31 +129,29 @@ if verify_manual_barrier_function
     s_fun = makeFunction(s_sol, x);
   end
   
-  % store initial guess
-  initial_guess = {double(sol.eval([decomp(u, x); decomp(B_full, x); decomp(Nu_min, x); decomp(Nu_max, x); decomp(NBdot, x)]))};
-  save 'initial_guess.mat' initial_guess;
+  vars = full(double(sol.eval(prog.variables)));
+  save 'initial_guess.mat' vars;
 else
   % load initial guess
   if use_stored_initial_guess
     load('initial_guess.mat');
-    bilinear_solve_options.initial_guess = addNoise(initial_guess, 0.5);
+    bilinear_solve_options.initial_guess = vars; % + 0.5 * randn(size(vars));
   end
   
   % iteratively grow zero level set of barrier function
   prog_base = prog;
   for i = 1 : barrier_grow_iters
-    [sol, success, sol_w] = solveBilinear(prog, bilinear_sos_constraints, indeterminates, solver, solver_options, bilinear_solve_options);
+    [sol, success] = solveBilinear(prog, bilinear_sos_constraints, indeterminates, solver, solver_options, bilinear_solve_options);
     disp(['status: ' char(sol.status)]);
     disp(['success: ' num2str(success)])
     fprintf('\n\n');
     
     B_sol = sol.eval(B);
-    Bdot_sol = sol.eval(Bdot);
     u_sol = sol.eval(u);
     
     if success
-      sol_w_best = sol_w;
-      options.plotfun(B_sol, Bdot_sol, x, u_sol, f);
+      vars_best = full(double(sol.eval(prog.variables)));
+      options.plotfun(B_sol, x, u_sol, f);
       
       B_fun = makeFunction(B_sol, x);
       u_fun = makeFunction(u_sol, x);
@@ -160,23 +163,12 @@ else
       prog = prog_base;
       [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
       prog = prog.withSOS(-B - L0 * -B_sol);
-    end
-
-    if exist('sol_w_best', 'var')
-      bilinear_solve_options.initial_guess = addNoise(sol_w_best, 1);
+      
+      bilinear_solve_options.initial_guess = vars_best + 0.1 * randn(size(vars_best));
     end
   end
 end
 
-end
-
-function w_noisy = addNoise(w, sigma)
-w_noisy = w;
-for row = 1 : size(w, 1)
-  for col = 1 : size(w, 2)
-    w_noisy{row, col} = w_noisy{row, col} + sigma * randn;
-  end
-end
 end
 
 function fun = makeFunction(poly, var)
@@ -190,3 +182,4 @@ else
   ret = subs(poly, var, input);
 end
 end
+

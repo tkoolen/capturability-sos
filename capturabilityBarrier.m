@@ -8,9 +8,9 @@ solver_options.verbose = 0;
 bilinear_solve_options.max_iters = 150; %75;
 bilinear_solve_options.rank_tol = 1e-5;
 
-use_stored_initial_guess = false;
+use_stored_initial_guess = true;
 verify_manual_barrier_function = isfield(options, 'B_manual');
-barrier_grow_iters = 1; %5;
+barrier_grow_iters = 5;
 
 % degrees
 u_degree = 1;
@@ -71,10 +71,13 @@ prog = prog.withSOS(-B - L0 * g_Xstar - 1); % B <= -X0_margin on Xstar
 if isempty(reset)
   indeterminates = x;
 else
-
   % discrete input
-  ns = length(s_min);
-  [prog, s] = prog.newFreePoly(monomials(x, 0 : s_degree), ns);
+  if verify_manual_barrier_function
+    s = options.s_manual(x);
+  else
+    ns = length(s_min);
+    [prog, s] = prog.newFreePoly(monomials(x, 0 : s_degree), ns);
+  end
   
   % discrete input limits
   [prog, Ns_min] = prog.newFreePoly(monomials(x, 0 : Ns_degree));
@@ -88,10 +91,11 @@ else
   [prog, x_prime] = prog.newIndeterminate('y', nstates);
   indeterminates = [x; x_prime];
 
-  [prog, NB_prev_B] = prog.newFreePoly(monomials(indeterminates, 0 : NB_prev_B_degree));
-  [prog, NB_prev_reset] = prog.newFreePoly(monomials(indeterminates, 0 : NB_prev_reset_degree));
+  [prog, LB_prev_B] = prog.newSOSPoly(monomials(indeterminates, 0 : NB_prev_B_degree));
   [prog, LB_prev_guard] = prog.newSOSPoly(monomials(indeterminates, 0 : LB_prev_guard_degree));
-  bilinear_sos_constraints{end + 1} = -B_prev(x_prime) + NB_prev_B * B - NB_prev_reset * (x_prime - reset(x, s)) - LB_prev_guard * g_Xguard(x);
+  [prog, NB_prev_reset] = prog.newFreePoly(monomials(indeterminates, 0 : NB_prev_reset_degree));
+  bilinear_sos_constraints{end + 1} = -B_prev(x_prime) + LB_prev_B * B - NB_prev_reset * sum((x_prime - reset(x, s)).^2) - LB_prev_guard * g_Xguard(x);
+%   bilinear_sos_constraints{end + 1} = -B_prev(reset(x, s)) + LB_prev_B * B - LB_prev_guard * g_Xguard(x);
 end
 
 % Solve

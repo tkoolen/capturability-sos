@@ -1,7 +1,7 @@
-function visualizeScalarSystem(B_sol, x, f, ~)
+function visualizeScalarSystem(B_sol, x, f, u)
 X = linspace(-2, 2, 100);
 B_num = msubs(B_sol, x, X);
-h = figure(1);
+figure(1);
 hold on;
 lines = findall(gcf, 'Type', 'line');
 
@@ -10,6 +10,6 @@ for i = 2 : length(lines)
 end
 plot(X, B_num);
 plot(X, zeros(size(X)), 'r');
-hf = plot(X, msubs(f(x), x, X), 'g');
+plot(X, msubs(f(x, u), x, X), 'g');
 
 end

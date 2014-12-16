@@ -6,9 +6,11 @@ nmesh = 50;
 if length(x) == 2
   gs_B = reshape(full(double(msubs(B,x,[X(:),Y(:)]'))), nmesh, nmesh);
 else
-  T = ones(size(X));
+  t = 0;
+  T = t * ones(size(X));
   gs_B = reshape(full(double(msubs(B,x,[X(:),Y(:),T(:)]'))), nmesh, nmesh);
 end
+Bdot = diff(B, x) * f(x, u);
 % gs_Bdot = full(double(msubs(Bdot,x,[X(:),Y(:)]')));
 
 hfig = figure('Position', [100, 100, 1080, 720]);
@@ -66,11 +68,8 @@ for j = 1 : length(r_levelset)
       u_i = u_levelset_j(:, i);
       f_levelset(:, i) = f(x_i, u_i);
     end
-    dt = 1e-3;
-    dx_levelset = f_levelset * dt;
-    dB_levelset = full(double(msubs(B, x, x_levelset_j + dx_levelset))) - full(double(msubs(B, x, x_levelset_j)));
-    
-    quiver3(x_levelset_j(1, :), x_levelset_j(2, :), B_levelset_j, dx_levelset(1, :), dx_levelset(2, :), dB_levelset, 'r', 'LineWidth', 2);
+    Bdot_levelset_j = full(double(msubs(Bdot, x, x_levelset_j)));    
+    quiver3(x_levelset_j(1, :), x_levelset_j(2, :), B_levelset_j, f_levelset(1, :), f_levelset(2, :), Bdot_levelset_j, 'r', 'LineWidth', 2);
   end
 end
 

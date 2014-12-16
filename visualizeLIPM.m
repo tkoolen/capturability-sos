@@ -1,4 +1,8 @@
-function visualizeLIPM(B, x, u, f, videoWriter)
+function visualizeLIPM(B, x, u, f, hfig, options)
+
+if ~isfield(options, 'show_legend')
+  options.show_legend = true;
+end
 
 nmesh = 50;
 
@@ -13,7 +17,7 @@ end
 Bdot = diff(B, x) * f(x, u);
 % gs_Bdot = full(double(msubs(Bdot,x,[X(:),Y(:)]')));
 
-hfig = figure('Position', [100, 100, 1080, 720]);
+figure(hfig);
 hold on;
 colormap(summer);
 hB = surfl(X, Y, reshape(double(gs_B),nmesh,nmesh));
@@ -46,7 +50,7 @@ for j = 1 : length(r_levelset)
   else
     x_levelset_j = [r_levelset{j}; rd_levelset{j}; zeros(1, size(r_levelset{j}, 2))];
   end
-
+  
   B_levelset_j = B_levelset{j};
   
   if ~isempty(B_levelset_j)
@@ -59,7 +63,7 @@ for j = 1 : length(r_levelset)
     ric_levelset = sum(x_levelset_j, 1);
     disp(['max icp distance: ' num2str(max(abs(ric_levelset)))]);
     
-%     Bdot_levelset = full(double(msubs(Bdot, x, x_levelset_j)));
+    %     Bdot_levelset = full(double(msubs(Bdot, x, x_levelset_j)));
     u_levelset_j = full(double(msubs(u, x, x_levelset_j)));
     
     f_levelset = zeros(size(x_levelset_j));
@@ -68,21 +72,19 @@ for j = 1 : length(r_levelset)
       u_i = u_levelset_j(:, i);
       f_levelset(:, i) = f(x_i, u_i);
     end
-    Bdot_levelset_j = full(double(msubs(Bdot, x, x_levelset_j)));    
+    Bdot_levelset_j = full(double(msubs(Bdot, x, x_levelset_j)));
     quiver3(x_levelset_j(1, :), x_levelset_j(2, :), B_levelset_j, f_levelset(1, :), f_levelset(2, :), Bdot_levelset_j, 'r', 'LineWidth', 2);
   end
 end
 
 hold off;
+view(30, 30);
 
 set(gca,'FontSize', 15)
-legend(hB(1), {'B(x) = 0'});
+if options.show_legend
+  legend(hB(1), {'B(x) = 0'});
+end
 axis([-3 3 -3 3 -5 35]);
 xlabel('r'); ylabel('dr/dt');
-
-if nargin > 4
-  frame = getframe(hfig);
-  writeVideo(videoWriter,frame);
-end
 
 end

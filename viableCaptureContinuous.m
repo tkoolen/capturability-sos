@@ -10,7 +10,7 @@ bilinear_solve_options.rank_tol = 1e-5;
 
 use_stored_initial_guess = true;
 verify_manual_barrier_function = isfield(options, 'B_manual');
-barrier_grow_iters = 5;
+barrier_grow_iters = 15;
 
 % spotless setup
 solver = getSolver();
@@ -45,23 +45,34 @@ end
 prog = prog.withSOS(B - lambda_Xfailed * g_Xfailed - 1e-7); % B > 0 on Xf
 
 % Barrier function derivative constraint
+Bdot = diff(B, x) * f(x, u);
 nu_B_degree = 2;
 lambda_Xg_degree = 2;
-
-Bdot = diff(B, x) * f(x, u);
 [prog, nu_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
-for i = 1 : length(g_Xtarget)
-  [prog, lambda_Xtarget] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree));
-  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_Xtarget' * g_Xtarget(i) + 1e-7; % Bdot(x) < 0 wherever B(x) = 0 and one of the components of g_Xg(x) >= 0
+if ~isempty(g_Xtarget)
+  [prog, z] = prog.newFreePoly(monomials(x, 0 : 4));
+  for i = 1 : length(g_Xtarget)
+    [prog, lambda_Xg] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree));
+    prog = prog.withSOS(z - lambda_Xg * g_Xtarget(i)); % z >= 0 wherever g_Xtarget(i) >= 0
+  end
+  [prog, lambda_z] = prog.newSOSPoly(monomials(x, 0 : 2));
+  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_z' * z + 1e-7; % Bdot(x) < 0 wherever B(x) = 0 and z(x) < 0
+else
+  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + 1e-7; % Bdot(x) < 0 wherever B(x) = 0
 end
 
 % Input limits
 [prog, nu_u_min_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
-[prog, lambda_u_min_Xtarget] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree), length(g_Xtarget));
-bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B + lambda_u_min_Xtarget' * g_Xtarget; % u >= u_min wherever B(x) = 0 and g_Xg(x) >= 0
 [prog, nu_u_max_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
-[prog, lambda_u_max_Xtarget] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree), length(g_Xtarget));
-bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B + lambda_u_max_Xtarget' * g_Xtarget; % u <= u_max on B(x) = 0
+if ~isempty(g_Xtarget)
+  [prog, lambda_u_min_z] = prog.newSOSPoly(monomials(x, 0 : 2));
+  bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B - lambda_u_min_z * z; % u >= u_min wherever B(x) = 0 and z(x) < 0
+  [prog, lambda_u_max_z] = prog.newSOSPoly(monomials(x, 0 : 2));
+  bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B - lambda_u_max_z' * z; % u <= u_max wherever B(x) = 0 and z(x) < 0
+else
+  bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B; % u >= u_min wherever B(x) = 0
+  bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B; % u <= u_max wherever B(x) = 0
+end
 
 % % Initial condition constraint
 [prog, L0] = prog.newSOSPoly(monomials(x, 0 : 2));
@@ -83,7 +94,7 @@ if verify_manual_barrier_function
  
   B_sol = sol.eval(B);
   u_sol = sol.eval(u);
-  options.plotfun(B_sol, x, u_sol, f);
+  options.visualizer.visualize(B_sol, x, u_sol, f);
 
   % TODO: if success...
   B_fun = makeFunction(B_sol, x);
@@ -111,7 +122,7 @@ else
     
     if success
       vars_best = full(double(sol.eval(prog.variables)));
-      options.plotfun(B_sol, x, u_sol, f);
+      options.visualizer.visualize(B_sol, x, u_sol, f);
       
       B_fun = makeFunction(B_sol, x);
       u_fun = makeFunction(u_sol, x);

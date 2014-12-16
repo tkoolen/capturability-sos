@@ -1,4 +1,4 @@
-function testCapturabilityDiscreteBarrier(N, verify_manual_barrier_function)
+function lipmDiscreteBarrier(N, verify_manual_barrier_function)
 
 % path setup
 addpath(fullfile('util'));

@@ -44,9 +44,8 @@ solver_options = spot_sdp_default_options();
 % solver_options.verbose = 1;
 options.max_iters = 20;
 options.rank_tol = 1e-7;
-options.objective_type = 'sum';
 options.do_facial_reduction = true;
-[prog, sol] = solveBilinear(prog, constr, x, solver, solver_options, options);
+[sol, success] = solveBilinear(prog, constr, x, solver, solver_options, options);
 
 xprint = msspoly('x',2); % print in terms of x1 and x2
 B_sol = clean(subs(sol.eval(B),x,xprint),1e-5);

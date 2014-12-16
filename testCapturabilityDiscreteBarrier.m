@@ -44,12 +44,12 @@ options = struct;
 options.plotfun = @(varargin) [];
 
 if verify_manual_barrier_function
-  options.B_manual = @(x) B_prev(x);
-  options.s_manual = @(x) 0;
+%   options.B_manual = @(x) B_prev(x);
+%   options.s_manual = @(x) 0;
   
-%   dN_minus_one = captureLimit(t_min, u_max, s_max, N - 1);
-%   options.B_manual = @(x) (x(1) + x(2))^2 / (dN_minus_one + s_max)^2 - 1;
-%   options.s_manual = @(x) -s_max * (x(1) + x(2)) / (dN_minus_one + s_max);
+  dN_minus_one = captureLimit(t_min, u_max, s_max, N - 1);
+  options.B_manual = @(x) (x(1) + x(2))^2 / (dN_minus_one + s_max)^2 - 1;
+  options.s_manual = @(x) -s_max * (x(1) + x(2)) / (dN_minus_one + s_max);
 end
 
 [B_fun, s_fun] = capturabilityDiscreteBarrier(B_prev, nstates, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options);

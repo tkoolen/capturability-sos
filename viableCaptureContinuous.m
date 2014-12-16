@@ -1,4 +1,4 @@
-function [B_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xg, g_Xf, options)
+function [B_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xtarget, g_Xfailed, options)
 
 % options
 solver_options = spot_sdp_default_options();
@@ -37,24 +37,24 @@ end
 
 % Unsafe set constraint
 [prog, lambda_Xf] = prog.newSOSPoly(monomials(x, 0 : 2));
-prog = prog.withSOS(B - lambda_Xf * g_Xf(x)); % - 1e-5); % B > 0 on Xf
+prog = prog.withSOS(B - lambda_Xf * g_Xfailed(x)); % - 1e-5); % B > 0 on Xf
 
 % Barrier function derivative constraint
 nu_B_degree = 4;
-lambda_Xg_degree = 10; % TODO
+lambda_Xg_degree = 6; % TODO
 
 Bdot = diff(B, x) * f(x, u);
 [prog, nu_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
 [prog, lambda_Xg] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree));
-bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_Xg * g_Xg(x); % + 1e-5; % Bdot(x) < 0 wherever B(x) = 0 and g_Xg(x) >= 0
+bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_Xg * g_Xtarget(x); % + 1e-5; % Bdot(x) < 0 wherever B(x) = 0 and g_Xg(x) >= 0
 
 % Input limits
 [prog, nu_u_min_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
 [prog, lambda_u_min_Xg] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree));
-bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B + lambda_u_min_Xg * g_Xg(x); % u >= u_min wherever B(x) = 0 and g_Xg(x) >= 0
+bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B + lambda_u_min_Xg * g_Xtarget(x); % u >= u_min wherever B(x) = 0 and g_Xg(x) >= 0
 [prog, nu_u_max_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
 [prog, lambda_u_max_Xg] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree));
-bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B + lambda_u_max_Xg * g_Xg(x); % u <= u_max on B(x) = 0
+bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B + lambda_u_max_Xg * g_Xtarget(x); % u <= u_max on B(x) = 0
 
 % % Initial condition constraint
 % g_Xstar = g_Xstar(x);
@@ -77,7 +77,7 @@ if verify_manual_barrier_function
  
   B_sol = sol.eval(B);
   u_sol = sol.eval(u);
-  options.plotfun(B_sol, x, f, u_sol);
+  options.plotfun(B_sol, x, u_sol, f);
 
   % TODO: if success...
   B_fun = makeFunction(B_sol, x);
@@ -105,7 +105,7 @@ else
     
     if success
       vars_best = full(double(sol.eval(prog.variables)));
-      options.plotfun(B_sol, x, f, u_sol);
+      options.plotfun(B_sol, x, u_sol, f);
       
       B_fun = makeFunction(B_sol, x);
       u_fun = makeFunction(u_sol, x);

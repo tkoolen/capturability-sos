@@ -6,8 +6,18 @@ end
 if nargin < 2
   verify_manual_barrier_function = true;
 end
+
+create_video = false;
+if create_video
+  writerObj = VideoWriter('barrierGrow.mp4', 'MPEG-4');
+  writerObj.FrameRate = 5;
+  open(writerObj);
+  options.plotfun = @(B, x, u, f) visualizeLIPM(B, x, u, f, writerObj);
+  cleaner = onCleanup(@() close(writerObj));
+else
+  options.plotfun = @visualizeLIPM;
+end
 options.verify_manual_barrier_function = verify_manual_barrier_function;
-options.plotfun = @visualizeLIPM;
 
 % path setup
 addpath(fullfile('util'));
@@ -34,6 +44,7 @@ s_max = 1;
 
 % Guard
 t_min = 1;
+% g_Xguard = @(x) (x(3) + 1e-3) * (x(3) - t_min);
 g_Xguard = @(x) x(3) - t_min;
 
 % manual barrier function
@@ -42,7 +53,7 @@ if verify_manual_barrier_function
 %   dN = captureLimit(t_min, u_max, s_max, N);
   dN = captureLimit(t_min, u_max, s_max, N - 1);
   options.B_manual = @(x) (x(1) + x(2))^2 / (dN)^2 - 1;
-  options.s_manual = @(x) -s_max * (x(1) + x(2)) / dN;
+  options.s_manual = @(x) s_max * (x(1) + x(2)) / dN;
 end
 
 if N > 0
@@ -50,7 +61,7 @@ if N > 0
   BN_minus_one_manual = @(x) (x(1) + x(2))^2 / (dN_minus_one)^2 - 1;
   f = @(x, u) [lipmDynamics(x, u); 1];
   nstates = 3;
-  reset = @(x, s) [x(1) + s; x(2); 0];
+  reset = @(x, s) [x(1) - s; x(2); 0];
 else
   BN_minus_one_manual = [];
   f = @lipmDynamics;

@@ -1,4 +1,4 @@
-function visualizeLIPM(B, x, u, f)
+function visualizeLIPM(B, x, u, f, videoWriter)
 
 nmesh = 50;
 
@@ -6,12 +6,12 @@ nmesh = 50;
 if length(x) == 2
   gs_B = reshape(full(double(msubs(B,x,[X(:),Y(:)]'))), nmesh, nmesh);
 else
-  T = zeros(size(X));
+  T = ones(size(X));
   gs_B = reshape(full(double(msubs(B,x,[X(:),Y(:),T(:)]'))), nmesh, nmesh);
 end
 % gs_Bdot = full(double(msubs(Bdot,x,[X(:),Y(:)]')));
 
-figure();
+hfig = figure('Position', [100, 100, 1080, 720]);
 hold on;
 colormap(summer);
 hB = surfl(X, Y, reshape(double(gs_B),nmesh,nmesh));
@@ -76,10 +76,14 @@ end
 
 hold off;
 
+set(gca,'FontSize', 15)
 legend(hB(1), {'B(x) = 0'});
-
+axis([-3 3 -3 3 -5 35]);
 xlabel('r'); ylabel('dr/dt');
 
-
+if nargin > 4
+  frame = getframe(hfig);
+  writeVideo(videoWriter,frame);
+end
 
 end

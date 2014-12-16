@@ -20,6 +20,10 @@ bilinear_sos_constraints = cell(0);
 % Indeterminates
 [prog, x] = prog.newIndeterminate('x', nstates);
 
+% Fill in indeterminates
+g_Xtarget = functionHandleSubs(g_Xtarget, x);
+g_Xfailed = functionHandleSubs(g_Xfailed, x);
+
 % Inputs
 u_degree = 1;
 ninputs = length(u_min);
@@ -36,8 +40,8 @@ else
 end
 
 % Unsafe set constraint
-[prog, lambda_Xf] = prog.newSOSPoly(monomials(x, 0 : 2));
-prog = prog.withSOS(B - lambda_Xf * g_Xfailed(x)); % - 1e-5); % B > 0 on Xf
+[prog, lambda_Xfailed] = prog.newSOSPoly(monomials(x, 0 : 2));
+prog = prog.withSOS(B - lambda_Xfailed * g_Xfailed); % - 1e-5); % B > 0 on Xf
 
 % Barrier function derivative constraint
 nu_B_degree = 4;
@@ -45,16 +49,16 @@ lambda_Xg_degree = 6; % TODO
 
 Bdot = diff(B, x) * f(x, u);
 [prog, nu_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
-[prog, lambda_Xg] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree));
-bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_Xg * g_Xtarget(x); % + 1e-5; % Bdot(x) < 0 wherever B(x) = 0 and g_Xg(x) >= 0
+[prog, lambda_Xtarget] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree), length(g_Xtarget));
+bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_Xtarget' * g_Xtarget; % + 1e-5; % Bdot(x) < 0 wherever B(x) = 0 and g_Xg(x) >= 0
 
 % Input limits
 [prog, nu_u_min_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
-[prog, lambda_u_min_Xg] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree));
-bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B + lambda_u_min_Xg * g_Xtarget(x); % u >= u_min wherever B(x) = 0 and g_Xg(x) >= 0
+[prog, lambda_u_min_Xtarget] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree), length(g_Xtarget));
+bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B + lambda_u_min_Xtarget' * g_Xtarget; % u >= u_min wherever B(x) = 0 and g_Xg(x) >= 0
 [prog, nu_u_max_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
-[prog, lambda_u_max_Xg] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree));
-bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B + lambda_u_max_Xg * g_Xtarget(x); % u <= u_max on B(x) = 0
+[prog, lambda_u_max_Xtarget] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree), length(g_Xtarget));
+bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B + lambda_u_max_Xtarget' * g_Xtarget; % u <= u_max on B(x) = 0
 
 % % Initial condition constraint
 % g_Xstar = g_Xstar(x);

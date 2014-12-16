@@ -1,5 +1,4 @@
 function testCapturabilityContinuousBarrier(N, verify_manual_barrier_function)
-
 % path setup
 addpath(fullfile('util'));
 checkDependency('spotless');
@@ -15,7 +14,6 @@ if nargin < 2
   verify_manual_barrier_function = true;
 end
 
-t_min = 1;
 s_max = 1;
 
 % dynamics
@@ -25,11 +23,15 @@ f = @(x, u) [lipmDynamics(x, u); 1];
 u_min = -1;
 u_max = 1;
 
+% Guard
+t_min = 1;
+g_Xguard = @(x) x(3) - t_min;
+
 if N > 0
   dN_minus_one = captureLimit(t_min, u_max, s_max, N - 1);
-  B_prev = @(x) (x(1) + x(2))^2 / (dN_minus_one + s_max)^2 - 1;
+  BN_minus_one_prime = @(x) (x(1) + x(2))^2 / (dN_minus_one + s_max)^2 - 1;
 else
-  B_prev = @(x) 0;
+  BN_minus_one_prime = @(x) 0;
 end
 
 nstates = 3;
@@ -53,7 +55,7 @@ if verify_manual_barrier_function
   end
 end
 
-g_Xg = @(x) -B_prev(x);
-[B_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xg, g_Xf, options);
+g_Xg = {@(x) -BN_minus_one_prime(x); g_Xguard};
+[BN_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xg, g_Xf, options);
 
 end

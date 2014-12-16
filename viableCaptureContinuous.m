@@ -1,4 +1,4 @@
-function [B_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xtarget, g_Xfailed, options)
+function [B_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xtarget, g_Xfailed, g_Xstar, options)
 
 % options
 solver_options = spot_sdp_default_options();
@@ -23,6 +23,7 @@ bilinear_sos_constraints = cell(0);
 % Fill in indeterminates
 g_Xtarget = functionHandleSubs(g_Xtarget, x);
 g_Xfailed = functionHandleSubs(g_Xfailed, x);
+g_Xstar = functionHandleSubs(g_Xstar, x);
 
 % Inputs
 u_degree = 1;
@@ -41,16 +42,18 @@ end
 
 % Unsafe set constraint
 [prog, lambda_Xfailed] = prog.newSOSPoly(monomials(x, 0 : 2));
-prog = prog.withSOS(B - lambda_Xfailed * g_Xfailed); % - 1e-5); % B > 0 on Xf
+prog = prog.withSOS(B - lambda_Xfailed * g_Xfailed - 1e-7); % B > 0 on Xf
 
 % Barrier function derivative constraint
-nu_B_degree = 4;
-lambda_Xg_degree = 6; % TODO
+nu_B_degree = 2;
+lambda_Xg_degree = 2;
 
 Bdot = diff(B, x) * f(x, u);
 [prog, nu_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
-[prog, lambda_Xtarget] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree), length(g_Xtarget));
-bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_Xtarget' * g_Xtarget; % + 1e-5; % Bdot(x) < 0 wherever B(x) = 0 and g_Xg(x) >= 0
+for i = 1 : length(g_Xtarget)
+  [prog, lambda_Xtarget] = prog.newSOSPoly(monomials(x, 0 : lambda_Xg_degree));
+  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_Xtarget' * g_Xtarget(i) + 1e-7; % Bdot(x) < 0 wherever B(x) = 0 and one of the components of g_Xg(x) >= 0
+end
 
 % Input limits
 [prog, nu_u_min_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
@@ -61,9 +64,8 @@ bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B + lambda_u_min_Xt
 bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B + lambda_u_max_Xtarget' * g_Xtarget; % u <= u_max on B(x) = 0
 
 % % Initial condition constraint
-% g_Xstar = g_Xstar(x);
-% [prog, L0] = prog.newSOSPoly(monomials(x, 0 : L0_degree));
-% prog = prog.withSOS(-B - L0 * g_Xstar - 1); % B <= -X0_margin on Xstar
+[prog, L0] = prog.newSOSPoly(monomials(x, 0 : 2));
+prog = prog.withSOS(-B - L0 * g_Xstar - 1); % B <= -X0_margin on Xstar
 
 indeterminates = x;
 
@@ -93,7 +95,7 @@ else
   % load initial guess
   if use_stored_initial_guess
     load('initial_guess.mat');
-    bilinear_solve_options.initial_guess = vars + 0.5 * randn(size(vars));
+    bilinear_solve_options.initial_guess = vars + 0.2 * randn(size(vars));
   end
   
   % iteratively grow zero level set of barrier function

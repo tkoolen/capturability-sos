@@ -40,22 +40,25 @@ nstates = 3;
 x_ic_dist = 3;
 g_Xf = @(x) (x(1) + x(2))^2 - x_ic_dist^2;
 
+% initial states
+x_star = [0; 0];
+g_Xstar = @(x) -(x(1:2) - x_star)' * (x(1:2) - x_star);
+
 options.plotfun = @visualizeLIPM;
 
+margin = 0; % -0.3 infeasible
 if verify_manual_barrier_function
   if N == 0
     dN = captureLimit(t_min, u_max, s_max, N);
     options.B_manual = @(x) (x(1) + x(2))^2 / dN^2 - 1;
   else
-    %   options.B_manual = B_prev;
-    
-    %   dN_minus_one = captureLimit(t_min, u_max, s_max, N - 1);
-    %   options.B_manual = @(x) (x(1) + x(2))^2 / (dN_minus_one + s_max)^2 - 1;
-    %   options.s_manual = @(x) -s_max * (x(1) + x(2)) / (dN_minus_one + s_max);
+%     options.B_manual = B_prev;
+    dN_minus_one = captureLimit(t_min, u_max, s_max, N - 1);
+    options.B_manual = @(x) ((x(1) + x(2))^2 / (dN_minus_one + s_max - margin)^2 - 1);
   end
 end
 
-g_Xg = {@(x) -BN_minus_one_prime(x); g_Xguard};
-[BN_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xg, g_Xf, options);
+g_Xtarget = {@(x) -BN_minus_one_prime(x); g_Xguard};
+[BN_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xtarget, g_Xf, g_Xstar, options);
 
 end

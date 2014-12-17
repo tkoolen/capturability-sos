@@ -8,7 +8,7 @@ cd(oldpath);
 
 % parameters
 if nargin < 1
-  N = 1;
+  N = 0;
 end
 if nargin < 2
   verify_manual_barrier_function = true;
@@ -46,15 +46,21 @@ x_star = [0; 0];
 g_Xstar = @(x) -(x(1:2) - x_star)' * (x(1:2) - x_star);
 
 % visualization
-% options.visualizer = SeparateFrameLIPMVisualizer();
+if verify_manual_barrier_function
+  options.visualizer = SeparateFrameLIPMVisualizer();
+else
+%   options.visualizer = SeparateFrameLIPMVisualizer();
 % options.visualizer = VideoLIPMVisualizer();
-options.visualizer = SubFigureLIPMVisualizer(15, 3);
+options.visualizer = SubFigureLIPMVisualizer(15, 3);  
+end
+
 
 margin = 0;
 if verify_manual_barrier_function
   if N == 0
-    dN = captureLimit(t_min, u_max, s_max, N);
-    options.B_manual = @(x) (x(1) + x(2))^2 / dN^2 - 1;
+%     dN = captureLimit(t_min, u_max, s_max, N);
+%     options.B_manual = @(x) (x(1) + x(2))^2 / dN^2 - 1;
+    options.B_manual = @(x) x(1:2)' * x(1:2) / 5e-1^2 - 1;
   else
     dN_minus_one = captureLimit(t_min, u_max, s_max, N - 1);
     options.B_manual = @(x) ((x(1) + x(2))^2 / (dN_minus_one + s_max - margin)^2 - 1);

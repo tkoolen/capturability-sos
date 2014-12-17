@@ -48,12 +48,12 @@ else
 end
 
 % discrete input limits
-[prog, Ns_min] = prog.newFreePoly(monomials(x, 0 : 2));
+[prog, Ls_min] = prog.newSOSPoly(monomials(x, 0 : 2));
 [prog, Ls_guard_min] = prog.newSOSPoly(monomials(x, 0 : 2));
-bilinear_sos_constraints{end + 1} = s - s_min + Ns_min * B - Ls_guard_min * g_Xguard(x); % s >= s_min on B(x) = 0, g_Xguard(x) >= 0
-[prog, Ns_max] = prog.newFreePoly(monomials(x, 0 : 2));
+bilinear_sos_constraints{end + 1} = s - s_min + Ls_min * B - Ls_guard_min * g_Xguard(x); % s >= s_min on B(x) = 0, g_Xguard(x) >= 0
+[prog, Ls_max] = prog.newSOSPoly(monomials(x, 0 : 2));
 [prog, Ls_guard_max] = prog.newSOSPoly(monomials(x, 0 : 2));
-bilinear_sos_constraints{end + 1} = s_max - s + Ns_max * B - Ls_guard_max * g_Xguard(x); % s <= s_max on B(x) = 0, g_Xguard(x) >= 0
+bilinear_sos_constraints{end + 1} = s_max - s + Ls_max * B - Ls_guard_max * g_Xguard(x); % s <= s_max on B(x) = 0, g_Xguard(x) >= 0
 
 % B_prev(xPrime) <= 0 wherever xPrime = reset(x, s), B(x) <= 0, g_Xguard <= 0
 [prog, x_prime] = prog.newIndeterminate('y', nstates);

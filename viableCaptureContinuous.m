@@ -56,7 +56,7 @@ if ~isempty(g_Xtarget)
     prog = prog.withSOS(z - lambda_Xg * g_Xtarget(i)); % z >= 0 wherever g_Xtarget(i) >= 0
   end
   [prog, lambda_z] = prog.newSOSPoly(monomials(x, 0 : 2));
-  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_z' * z + 1e-7; % Bdot(x) < 0 wherever B(x) = 0 and z(x) < 0
+  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_z * z + 1e-7; % Bdot(x) < 0 wherever B(x) = 0 and z(x) < 0
 else
   bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + 1e-7; % Bdot(x) < 0 wherever B(x) = 0
 end
@@ -66,9 +66,9 @@ end
 [prog, nu_u_max_B] = prog.newFreePoly(monomials(x, 0 : nu_B_degree));
 if ~isempty(g_Xtarget)
   [prog, lambda_u_min_z] = prog.newSOSPoly(monomials(x, 0 : 2));
-  bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B - lambda_u_min_z * z; % u >= u_min wherever B(x) = 0 and z(x) < 0
+  bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B + lambda_u_min_z * z; % u >= u_min wherever B(x) = 0 and z(x) < 0
   [prog, lambda_u_max_z] = prog.newSOSPoly(monomials(x, 0 : 2));
-  bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B - lambda_u_max_z' * z; % u <= u_max wherever B(x) = 0 and z(x) < 0
+  bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B + lambda_u_max_z * z; % u <= u_max wherever B(x) = 0 and z(x) < 0
 else
   bilinear_sos_constraints{end + 1} = u - u_min + nu_u_min_B * B; % u >= u_min wherever B(x) = 0
   bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B; % u <= u_max wherever B(x) = 0

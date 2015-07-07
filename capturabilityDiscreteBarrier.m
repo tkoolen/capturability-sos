@@ -62,11 +62,11 @@ indeterminates = [x; x_prime];
 [prog, LB_prev_B] = prog.newFreePoly(monomials(indeterminates, 0 : 2));
 [prog, LB_prev_guard] = prog.newSOSPoly(monomials(indeterminates, 0 : 2));
 [prog, NB_prev_reset] = prog.newFreePoly(monomials(indeterminates, 0 : 2), nstates);
-bilinear_sos_constraints{end + 1} = -B_prev(x_prime) + LB_prev_B * B - NB_prev_reset' * (x_prime - reset(x, s)) - LB_prev_guard * g_Xguard(x);
+bilinear_sos_constraints{end + 1} = -B_prev(x_prime) + LB_prev_B * B + NB_prev_reset' * (x_prime - reset(x, s)) - LB_prev_guard * g_Xguard(x);
 
 [prog, LB_prev] = prog.newSOSPoly(monomials(x, 0 : 2));
 [prog, LB_prev_restrict] = prog.newSOSPoly(monomials(x, 0 : 2));
-prog = prog.withSOS(-B - LB_prev * -B_prev(x) - LB_prev_restrict * g_Xguard(x)); % B 0-sublevel set is at least as large as B_prev 0-sublevel set restricted to guard set
+prog = prog.withSOS(-B + LB_prev * B_prev(x) - LB_prev_restrict * g_Xguard(x)); % B 0-sublevel set is at least as large as B_prev 0-sublevel set restricted to guard set
 
 % Solve
 B_fun = [];

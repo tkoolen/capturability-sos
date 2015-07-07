@@ -50,7 +50,11 @@ options.do_facial_reduction = true;
 xprint = msspoly('x',2); % print in terms of x1 and x2
 B_sol = clean(subs(sol.eval(B),x,xprint),1e-5);
 
-visualize(B_sol, g_X0, g_Xu, x, f);
+if success
+  visualize(B_sol, g_X0, g_Xu, x, f);
+else
+  error('no rank 1 solution found');
+end
 
 end
 

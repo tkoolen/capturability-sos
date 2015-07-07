@@ -79,7 +79,7 @@ if isfield(options, 'initial_guess') % initial_guess has values for all vars in 
 else
   for i = 1 : size(w, 1)
     for j = 1 : size(w, 2)
-      sol_w{i, j} = 2 * randn(size(w{i, j}));
+      sol_w{i, j} = 0.1 * randn(size(w{i, j}));
     end
   end
 end

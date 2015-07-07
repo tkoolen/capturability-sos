@@ -8,7 +8,7 @@ solver_options.verbose = 0;
 bilinear_solve_options.max_iters = 150; %75;
 bilinear_solve_options.rank_tol = 1e-5;
 
-use_stored_initial_guess = true;
+use_stored_initial_guess = false;
 verify_manual_barrier_function = isfield(options, 'B_manual');
 barrier_grow_iters = 15;
 

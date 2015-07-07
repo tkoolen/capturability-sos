@@ -59,12 +59,15 @@ solver_options.do_facial_reduction = true;
 solver_options.verbose = 0;
 options.max_iters = 20;
 options.rank_tol = 1e-7;
-[prog, sol] = solveBilinear(prog, constr, x, solver, solver_options, options);
+[sol, success] = solveBilinear(prog, constr, x, solver, solver_options, options);
 
-B_sol = clean(sol.eval(B), 1e-5);
-Bdot_sol = clean(sol.eval(Bdot), 1e-5);
-
-visualize(B_sol, Bdot_sol, g_X0, g_Xu, x, f);
+if success
+  B_sol = clean(sol.eval(B), 1e-5);
+  Bdot_sol = clean(sol.eval(Bdot), 1e-5);
+  visualize(B_sol, Bdot_sol, g_X0, g_Xu, x, f);
+else
+  error('failed')
+end
 
 end
 

@@ -1,4 +1,4 @@
-classdef VideoLIPMVisualizer < LIPMVisualizer
+classdef VideoLIPMVisualizer < ViableCaptureVisualizer
   properties (Hidden)
     hfig = [];
     videoWriter;

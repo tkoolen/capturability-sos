@@ -1,4 +1,4 @@
-classdef SubFigureLIPMVisualizer < LIPMVisualizer
+classdef SubFigureLIPMVisualizer < ViableCaptureVisualizer
   properties (Hidden)
     hfig = [];
     cols;

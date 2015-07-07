@@ -19,11 +19,12 @@ g_Xg = @(x) -(x + 1.9)^2 / 0.1^2  + 1;
 g_Xf = @(x) x^2 / 2^2 - 1;
 
 options = struct;
-options.plotfun = @visualizeScalarSystem;
+options.visualizer = ScalarSystemVisualizer(-3.5, 3.5);
 if verify_manual
 %   options.B_manual = @(x) x^2 / 1^2 - 1; %feasible with X_g = -1
 %   options.B_manual = @(x) x^2 / 2^2 - 1; %feasible with X_g = 1
   options.B_manual = @(x) (x + 0.5)^2 / 1.49^2 - 1; % feasible with X_g positive only in one corner
 end
-[B_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xg, g_Xf, options);
+g_Xstar = @(x) -x^2;
+[B_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xg, g_Xf, g_Xstar, options);
 end

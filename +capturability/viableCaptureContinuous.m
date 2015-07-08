@@ -1,4 +1,6 @@
 function [B_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xtarget, g_Xfailed, g_Xstar, options)
+import bilinearSOS.*
+import util.*
 
 % options
 solver_options = spot_sdp_default_options();

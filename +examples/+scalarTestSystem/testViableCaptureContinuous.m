@@ -2,8 +2,10 @@ function testViableCaptureContinuous(verify_manual)
 if nargin < 1
   verify_manual = true;
 end
+
 % path setup
-addpath(fullfile('util'));
+import capturability.*;
+import capturability.visualizers.*;
 checkDependency('spotless');
 oldpath = cd(fullfile('..', 'frlib'));
 setup();
@@ -15,8 +17,9 @@ u_min = 0;
 u_max = 0;
 % g_Xg = @(x) 1;
 % g_Xg = @(x) -1;
-g_Xg = @(x) -(x + 1.9)^2 / 0.1^2  + 1;
-g_Xf = @(x) x^2 / 2^2 - 1;
+% g_Xg = @(x) -(x + 1.9)^2 / 0.1^2  + 1; % -2 to -1.8
+g_Xg = @(x) -1;
+g_Xf = @(x) x^2 / 3^2 - 1; % outside [-3, 3]
 
 options = struct;
 options.visualizer = ScalarSystemVisualizer(-3.5, 3.5);

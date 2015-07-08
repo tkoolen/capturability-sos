@@ -1,9 +1,10 @@
 function barrierRankSpotless()
-addpath(fullfile('util'));
-cleaner = onCleanup(@() rmpath(fullfile('util')));
+import util.*
+import bilinearSOS.*
+
 checkDependency('spotless');
 solver = getSolver();
-% addpath(fullfile('..', 'frlib'));
+
 oldpath = cd(fullfile('..', 'frlib'));
 setup();
 cd(oldpath);

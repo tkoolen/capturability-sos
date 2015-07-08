@@ -1,4 +1,6 @@
-function [B_fun, s_fun] = capturabilityDiscreteBarrier(B_prev, nstates, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options)
+function [B_fun, s_fun] = viableCaptureDiscrete(B_prev, nstates, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options)
+import bilinearSOS.*
+import util.*
 
 % options
 solver_options = spot_sdp_default_options();

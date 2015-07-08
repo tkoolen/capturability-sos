@@ -1,6 +1,10 @@
 function lipmContinuousBarrier(N, verify_manual_barrier_function)
 % path setup
-addpath(fullfile('util'));
+import examples.lipm.*
+import util.*
+import capturability.*;
+import capturability.visualizers.*;
+
 checkDependency('spotless');
 oldpath = cd(fullfile('..', 'frlib'));
 setup();
@@ -47,11 +51,11 @@ g_Xstar = @(x) -(x(1:2) - x_star)' * (x(1:2) - x_star);
 
 % visualization
 if verify_manual_barrier_function
-  options.visualizer = SeparateFrameLIPMVisualizer();
+  options.visualizer = SeparateFrameVisualizer(@visualizeLIPM);
 else
-%   options.visualizer = SeparateFrameLIPMVisualizer();
-% options.visualizer = VideoLIPMVisualizer();
-options.visualizer = SubFigureLIPMVisualizer(15, 3);  
+  % options.visualizer = SeparateFrameVisualizer(@visualizeLIPM);
+  % options.visualizer = VideoVisualizer(@visualizeLIPM);
+  options.visualizer = SubFigureVisualizer(15, 3, @visualizeLIPM);
 end
 
 

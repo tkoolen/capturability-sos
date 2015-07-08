@@ -1,15 +1,17 @@
-classdef VideoLIPMVisualizer < ViableCaptureVisualizer
+classdef VideoVisualizer < capturability.visualizers.ViableCaptureVisualizer
   properties (Hidden)
     hfig = [];
     videoWriter;
+    plot_function;
   end
   
   methods
-    function obj = VideoLIPMVisualizer()
+    function obj = VideoVisualizer(plot_function)
       writerObj = VideoWriter('barrierGrow.mp4', 'MPEG-4');
       writerObj.FrameRate = 5;
       open(writerObj);
       obj.videoWriter = writerObj;
+      obj.plot_function = plot_function;
     end
     
     function delete(obj)
@@ -22,7 +24,7 @@ classdef VideoLIPMVisualizer < ViableCaptureVisualizer
       end
       clf(obj.hfig);
       options.show_legend = false;
-      visualizeLIPM(B, x, u, f, obj.hfig, options);
+      obj.plot_function(B, x, u, f, obj.hfig, options);
       drawnow;
       frame = getframe(obj.hfig);
       writeVideo(obj.videoWriter,frame);

@@ -1,15 +1,17 @@
-classdef SubFigureLIPMVisualizer < ViableCaptureVisualizer
+classdef SubFigureVisualizer < visualizers.ViableCaptureVisualizer
   properties (Hidden)
     hfig = [];
     cols;
     rows;
+    plot_function;
     current_index = 1;
   end
   
   methods
-    function obj = SubFigureLIPMVisualizer(n_subfigures, n_rows)
+    function obj = SubFigureVisualizer(n_subfigures, n_rows, plot_function)
       obj.cols = ceil(n_subfigures / n_rows);
       obj.rows = n_rows;
+      obj.plot_function = plot_function;
     end
     
     function visualize(obj, B, x, u, f)
@@ -18,7 +20,7 @@ classdef SubFigureLIPMVisualizer < ViableCaptureVisualizer
       end
       subplot(obj.rows, obj.cols, obj.current_index);
       options.show_legend = false;
-      visualizeLIPM(B, x, u, f, obj.hfig, options);
+      obj.plot_function(B, x, u, f, obj.hfig, options);
       obj.current_index = obj.current_index + 1;
     end
   end

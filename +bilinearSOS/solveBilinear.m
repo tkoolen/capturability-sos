@@ -4,6 +4,8 @@ function [sol, success, w, sol_w] = solveBilinear(prog, constraints, x, solver, 
 % has free variables x.
 % From Ibaraki, Tomizuka - Rank Minimization Approach for Solving BMI Problems with Random Search
 
+import bilinearSOS.*
+
 if ~isfield(options, 'max_iters')
   options.max_iters = 20;
 end

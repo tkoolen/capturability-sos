@@ -1,6 +1,11 @@
 function lipmDiscreteBarrier(N, verify_manual_barrier_function)
 
 % path setup
+import examples.lipm.*
+import util.*
+import capturability.*;
+import capturability.visualizers.*;
+
 addpath(fullfile('util'));
 checkDependency('spotless');
 oldpath = cd(fullfile('..', 'frlib'));
@@ -52,6 +57,6 @@ if verify_manual_barrier_function
   options.s_manual = @(x) -s_max * (x(1) + x(2)) / (dN_minus_one + s_max);
 end
 
-[B_fun, s_fun] = capturabilityDiscreteBarrier(B_prev, nstates, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options);
+[B_fun, s_fun] = viableCaptureDiscrete(B_prev, nstates, reset, s_min, s_max, g_Xguard, g_Xfailed, g_Xstar, options);
 
 end

@@ -1,4 +1,4 @@
-classdef ScalarSystemVisualizer < ViableCaptureVisualizer
+classdef ScalarSystemVisualizer < capturability.visualizers.ViableCaptureVisualizer
   properties (Access = private)
     x_min;
     x_max;

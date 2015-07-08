@@ -1,4 +1,8 @@
-function barrier_rank_yalmip()
+function barrierRankYalmip()
+
+if ~checkDependency('yalmip')
+  error('Yalmip not found');
+end
 
 % Variables/Indeterminates
 sdpvar x1 x2

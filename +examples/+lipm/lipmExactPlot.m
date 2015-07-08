@@ -1,4 +1,5 @@
 function [] = lipmExactPlot()
+import examples.lipm.*
 
 nmesh = 50;
 rmax = 3;

@@ -1,4 +1,4 @@
-classdef SubFigureVisualizer < visualizers.ViableCaptureVisualizer
+classdef SubFigureVisualizer < capturability.visualizers.ViableCaptureVisualizer
   properties (Hidden)
     hfig = [];
     cols;

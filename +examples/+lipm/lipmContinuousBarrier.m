@@ -62,15 +62,14 @@ end
 margin = 0;
 if verify_manual_barrier_function
   if N == 0
-%     dN = captureLimit(t_min, u_max, s_max, N);
-%     options.B_manual = @(x) (x(1) + x(2))^2 / dN^2 - 1;
-    options.B_manual = @(x) x(1:2)' * x(1:2) / 5e-1^2 - 1;
+    dN = captureLimit(t_min, u_max, s_max, N);
+    options.B_manual = @(x) (x(1) + x(2))^2 / (dN - margin)^2 - 1;
+%     options.B_manual = @(x) x(1:2)' * x(1:2) / 5e-1^2 - 1;
   else
     dN_minus_one = captureLimit(t_min, u_max, s_max, N - 1);
     options.B_manual = @(x) ((x(1) + x(2))^2 / (dN_minus_one + s_max - margin)^2 - 1);
   end
 end
-
 
 [BN_fun, u_fun] = viableCaptureContinuous(f, nstates, u_min, u_max, g_Xtarget, g_Xf, g_Xstar, options);
 

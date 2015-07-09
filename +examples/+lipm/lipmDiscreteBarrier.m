@@ -6,7 +6,6 @@ import util.*
 import capturability.*;
 import capturability.visualizers.*;
 
-addpath(fullfile('util'));
 checkDependency('spotless');
 oldpath = cd(fullfile('..', 'frlib'));
 setup();

@@ -12,7 +12,11 @@ bilinear_solve_options.rank_tol = 1e-5;
 
 use_stored_initial_guess = false;
 verify_manual_barrier_function = isfield(options, 'B_manual');
-barrier_grow_iters = 15;
+if verify_manual_barrier_function
+  barrier_grow_iters = 1;
+else
+  barrier_grow_iters = 15;
+end
 
 % spotless setup
 solver = getSolver();
@@ -58,9 +62,9 @@ if ~isempty(g_Xtarget)
     prog = prog.withSOS(z - lambda_Xg * g_Xtarget(i)); % z >= 0 wherever g_Xtarget(i) >= 0
   end
   [prog, lambda_z] = prog.newSOSPoly(monomials(x, 0 : 2));
-  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_z * z + 1e-7; % Bdot(x) < 0 wherever B(x) = 0 and z(x) < 0
+  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + lambda_z * z; % Bdot(x) < 0 wherever B(x) = 0 and z(x) < 0
 else
-  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B + 1e-7; % Bdot(x) < 0 wherever B(x) = 0
+  bilinear_sos_constraints{end + 1} = -Bdot + nu_B * B; % Bdot(x) < 0 wherever B(x) = 0
 end
 
 % Input limits
@@ -76,21 +80,27 @@ else
   bilinear_sos_constraints{end + 1} = u_max - u + nu_u_max_B * B; % u <= u_max wherever B(x) = 0
 end
 
-% % Initial condition constraint
+% Initial condition constraint
 [prog, L0] = prog.newSOSPoly(monomials(x, 0 : 2));
 prog = prog.withSOS(-B - L0 * g_Xstar - 1); % B <= -X0_margin on Xstar
 
 indeterminates = x;
 
+% Filter SOS constraints that are actually linear out of bilinear_sos_constraints
+is_linear_sos_constraint = false(length(bilinear_sos_constraints), 1);
+for i = 1 : length(bilinear_sos_constraints)
+  is_linear_sos_constraint(i) = isLinearSOSConstraint(bilinear_sos_constraints{i}, indeterminates);
+  if is_linear_sos_constraint(i)
+    prog = prog.withSOS(bilinear_sos_constraints{i});
+  end
+end
+bilinear_sos_constraints(is_linear_sos_constraint) = [];
+
 % Solve
 B_fun = [];
 u_fun = [];
-if verify_manual_barrier_function
-  for i = 1 : length(bilinear_sos_constraints)
-    % SOS constraints that would normally be bilinear are now just linear
-    % since B is given
-    prog = prog.withSOS(bilinear_sos_constraints{i});
-  end
+
+if isempty(bilinear_sos_constraints)
   sol = prog.minimize(0, solver, solver_options);
   disp(char(sol.status));
  

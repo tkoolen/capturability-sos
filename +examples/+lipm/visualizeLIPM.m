@@ -34,16 +34,6 @@ contour3(X, Y, gs_B, zticks, 'k:');
 
 arrayfun(@(x) set(x, 'LineWidth', 3), hB);
 
-r_levelset = get(hB, 'XData');
-rd_levelset = get(hB, 'YData');
-B_levelset = get(hB, 'ZData');
-
-if ~iscell(r_levelset)
-  r_levelset = {r_levelset};
-  rd_levelset = {rd_levelset};
-  B_levelset = {B_levelset};
-end;
-
 C_col = 1;
 while C_col < size(C, 2)
   level = C(1, C_col);

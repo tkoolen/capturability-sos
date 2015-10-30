@@ -30,7 +30,7 @@ ax = gca();
 zticks = get(ax, 'ZTick');
 set(ax, 'ZTickMode', 'manual'); set(ax, 'ZLimMode', 'manual')
 contour3(X, Y, gs_B, zticks, 'k:');
-[~, hB] = contour3(X, Y, gs_B, [0 0], 'b'); % boundary function zero level set
+[C, hB] = contour3(X, Y, gs_B, [0 0], 'b'); % boundary function zero level set
 
 arrayfun(@(x) set(x, 'LineWidth', 3), hB);
 
@@ -44,38 +44,40 @@ if ~iscell(r_levelset)
   B_levelset = {B_levelset};
 end;
 
-for j = 1 : length(r_levelset)
-  if length(x) == 2
-    x_levelset_j = [r_levelset{j}; rd_levelset{j}];
-  else
-    x_levelset_j = [r_levelset{j}; rd_levelset{j}; zeros(1, size(r_levelset{j}, 2))];
+C_col = 1;
+while C_col < size(C, 2)
+  level = C(1, C_col);
+  num_entries = C(2, C_col);
+  x_levelset_j = C(:, C_col + 1 : C_col + num_entries);
+  if length(x) == 3
+    x_levelset_j = [x_levelset_j; zeros(1, num_entries)];
   end
+  B_levelset_j = level * ones(1, num_entries);
   
-  B_levelset_j = B_levelset{j};
-  
-  if ~isempty(B_levelset_j)
-    path_length = [0 cumsum(sqrt(sum(diff(x_levelset_j, 1, 2).^2, 1)))];
-    points_per_length_unit = 2;
-    npoints = ceil(path_length(end) * points_per_length_unit);
-    x_levelset_j = interp1(path_length', x_levelset_j', linspace(0, path_length(end), npoints)')';
-    B_levelset_j = interp1(path_length', B_levelset_j', linspace(0, path_length(end), npoints)')';
-    
-    ric_levelset = sum(x_levelset_j, 1);
-    disp(['max icp distance: ' num2str(max(abs(ric_levelset)))]);
-    
-    %     Bdot_levelset = full(double(msubs(Bdot, x, x_levelset_j)));
-    u_levelset_j = full(double(msubs(u, x, x_levelset_j)));
-    
-    f_levelset = zeros(size(x_levelset_j));
-    for i = 1 : size(x_levelset_j, 2)
-      x_i = x_levelset_j(:, i);
-      u_i = u_levelset_j(:, i);
-      f_levelset(:, i) = f(x_i, u_i);
-    end
-    Bdot_levelset_j = full(double(msubs(Bdot, x, x_levelset_j)));
-    quiver3(x_levelset_j(1, :), x_levelset_j(2, :), B_levelset_j, f_levelset(1, :), f_levelset(2, :), Bdot_levelset_j, 'r', 'LineWidth', 2);
+  path_length = [0 cumsum(sqrt(sum(diff(x_levelset_j, 1, 2).^2, 1)))];
+  points_per_length_unit = 2;
+  npoints = ceil(path_length(end) * points_per_length_unit);
+  x_levelset_j = interp1(path_length', x_levelset_j', linspace(0, path_length(end), npoints)')';
+  B_levelset_j = interp1(path_length', B_levelset_j', linspace(0, path_length(end), npoints)')';
+
+  ric_levelset = sum(x_levelset_j, 1);
+  disp(['max icp distance: ' num2str(max(abs(ric_levelset)))]);
+
+  %     Bdot_levelset = full(double(msubs(Bdot, x, x_levelset_j)));
+  u_levelset_j = full(double(msubs(u, x, x_levelset_j)));
+
+  f_levelset = zeros(size(x_levelset_j));
+  for i = 1 : size(x_levelset_j, 2)
+    x_i = x_levelset_j(:, i);
+    u_i = u_levelset_j(:, i);
+    f_levelset(:, i) = f(x_i, u_i);
   end
+  Bdot_levelset_j = full(double(msubs(Bdot, x, x_levelset_j)));
+  quiver3(x_levelset_j(1, :), x_levelset_j(2, :), B_levelset_j, f_levelset(1, :), f_levelset(2, :), Bdot_levelset_j, 'r', 'LineWidth', 2);
+  
+  C_col = C_col + num_entries + 1;
 end
+
 
 hold off;
 view(30, 30);
